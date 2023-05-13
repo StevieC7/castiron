@@ -6,14 +6,22 @@ fn main() {
 }
 #[tokio::main]
 async fn get_request() {
-    let body: Result<reqwest::Response, reqwest::Error> = reqwest::get("https://www.wired.com/feed")
+    let result: Result<reqwest::Response, reqwest::Error> = reqwest::get("https://www.wired.com/feed")
         .await;
-    match body {
+    match result {
         Ok(resp) => {
             println!("Response: {:?}", resp);
             println!("Headers:\n{:?}", resp.headers());
             println!("Status: {:?}", resp.status());
-            println!("Body:\n{}", resp.text().await.unwrap());
+            let text = resp.text().await;
+            match text {
+                Ok(val) => {
+                    println!("Body:\n{}", val)
+                }
+                Err(e) => {
+                    println!("Error: {:?}", e);
+                }
+            }
         }
         Err(e) => {
             println!("Error: {:?}", e);
