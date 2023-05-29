@@ -5,7 +5,6 @@ use std::{fs, io, path::Path};
 use tokio;
 use serde::{Serialize, Deserialize};
 fn main() {
-    // TODO: make sure the function for fetching and saving from saved URLs runs on launch
     let mut open_file: Option<File> = get_feed_list();
     match open_file {
         Some(ref mut file) => {
@@ -92,6 +91,7 @@ fn update_feeds(feeds: Vec<FeedMeta>) {
     for feed in feeds {
         let updated_feed: Result<String, reqwest::Error> = get_request(& feed.feed_url);
         match updated_feed {
+            // TODO: save the feeds into a file (or maybe one file per show?)
             Ok(_val) => println!("Fetched feed: {:?}", feed.feed_url),
             Err(e) => println!("Error fetching feed: {e}")
         }
