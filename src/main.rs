@@ -5,24 +5,13 @@ use std::{fs, io, path::Path};
 use tokio;
 use serde::{Serialize, Deserialize};
 fn main() {
-    let mut open_file: Option<File> = get_feed_list();
+    let open_file: Option<File> = get_feed_list();
     match open_file {
-        Some(ref mut file) => {
-            let mut bytes: Vec<u8> = Vec::new();
-            let file_read_result: Result<usize, io::Error> = file.read_to_end( &mut bytes );
-            let mut file_accessible: bool = false;
-            match file_read_result {
-                Ok(val) => {
-                    if val > 0 {
-                        file_accessible = true
-                    }
-                },
-                Err(e) => println!("Error doing file read stuff: {e}")
-            }
-            match file_accessible {
-                true => {
-                    let read_file: String = fs::read_to_string(Path::new("./feed_list.txt")).expect("Oopsie reading saved file.");
-                    println!("{:?}", read_file);
+        Some(ref _file) => {
+            let read_file: String = fs::read_to_string(Path::new("./feed_list.txt")).expect("Oopsie reading saved file.");
+            match read_file.len() {
+                0 => println!("Found no feeds to update."),
+                _ => {
                     let subscribed_feeds: Result<Vec<FeedMeta>, serde_json::Error> = serde_json::from_str(& read_file);
                     match subscribed_feeds {
                         Ok(feeds) => {
@@ -30,8 +19,7 @@ fn main() {
                         },
                         Err(e) => println!("Error reading feed list: {e}")
                     }
-                },
-                false => println!("Can't update feeds due to unreadable feed list.")
+                }
             }
         },
         None => println!("Can't update feeds due to unreadable feed list.")

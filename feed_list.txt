@@ -1,1 +1,1 @@
-[{"feed_url":"https://feeds.simplecast.com/wjQvYtdl"},{"feed_url":"https://feeds.simplecast.com/wjQvYtdl"},{"feed_url":"https://joeroganexp.libsyn.com/rss"}]
+[{"feed_url":"https://joeroganexp.libsyn.com/rss"},{"feed_url":"https://joeroganexp.libsyn.com/rss"}]
