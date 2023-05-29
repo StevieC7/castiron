@@ -1,14 +1,15 @@
 use reqwest::{self, get};
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, create_dir_all};
 use std::io::prelude::*;
 use std::{fs, io, path::Path};
 use tokio;
 use serde::{Serialize, Deserialize};
+use rand::Rng;
 fn main() {
     let open_file: Option<File> = get_feed_list();
     match open_file {
         Some(ref _file) => {
-            let read_file: String = fs::read_to_string(Path::new("./feed_list.txt")).expect("Oopsie reading saved file.");
+            let read_file: String = fs::read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
             match read_file.len() {
                 0 => println!("Found no feeds to update."),
                 _ => {
@@ -42,7 +43,7 @@ fn main() {
                     let feed_result: Option<File> = add_feed_to_list(input_url, file);
                     match feed_result {
                         Some( _file ) => {
-                            let contents = fs::read_to_string(Path::new("./feed_list.txt")).expect("Oopsie reading saved file");
+                            let contents = fs::read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file");
                             println!("-----Added successfully, contents below-----\n{contents}\n-------------------");
                         },
                         None => println!("Error saving feed to list.")
@@ -53,7 +54,7 @@ fn main() {
         }
         "LIST" => {
             println!("------Feeds you are following------");
-            let read_file: String = fs::read_to_string(Path::new("./feed_list.txt")).expect("Oopsie reading saved file.");
+            let read_file: String = fs::read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
             let contents: Result<Vec<FeedMeta>, serde_json::Error> = serde_json::from_str( & read_file );
             match contents {
                 Ok(values) => {
@@ -80,14 +81,48 @@ fn update_feeds(feeds: Vec<FeedMeta>) {
         let updated_feed: Result<String, reqwest::Error> = get_request(& feed.feed_url);
         match updated_feed {
             // TODO: save the feeds into a file (or maybe one file per show?)
-            Ok(_val) => println!("Fetched feed: {:?}", feed.feed_url),
+            Ok(_val) => {
+                println!("Fetched feed: {:?}", feed.feed_url);
+                // TODO: see what directories exist, then make unique directory for this show
+                let mut path_string: String = format!("./shows/{:?}", rand::thread_rng().gen_range(0..10000));
+                println!("{path_string}");
+                let dir_path: &Path = Path::new(path_string.as_str());
+                let created_dir: Result<(), io::Error> = create_dir_all(dir_path);
+                match created_dir {
+                    Ok(_) => {
+                        path_string.push_str("/feed.xml");
+                        let file_path = Path::new(path_string.as_str());
+                        let xml_file = OpenOptions::new()
+                            .create(true)
+                            .write(true)
+                            .open(file_path);
+                        match xml_file {
+                            Ok(mut file) => {
+                                let seek_result: Result<u64, io::Error> = file.seek(io::SeekFrom::Start(0));
+                                match seek_result {
+                                    Ok(_) => {
+                                        let result = file.write_all(_val.as_bytes());
+                                        match result {
+                                            Ok(_) => println!("Successfully created xml file for show: {:?}", feed.feed_url),
+                                            Err(e) => println!("Error writing fetched data to xml file: {e}")
+                                        }
+                                    },
+                                    Err(e) => println!("Error seeking for write head: {e}")
+                                }
+                            },
+                            Err(e) => println!("Error creating xml file: {e}")
+                        }
+                    },
+                    Err(e) => println!("Error creating directory: {e}")
+                }
+            },
             Err(e) => println!("Error fetching feed: {e}")
         }
     }
 }
 
 fn get_feed_list() -> Option<File> {
-    let path = Path::new("./feed_list.txt");
+    let path = Path::new("./feed_list.json");
     let mut file_options = OpenOptions::new();
     let file = file_options
         .create(true)
@@ -114,8 +149,7 @@ fn add_feed_to_list(url: String, mut file: File) -> Option<File> {
     match json_feed {
         Ok( _feed ) => {
             println!("Feed url accepted, attempting to save.");
-            let read_file: String = fs::read_to_string(Path::new("./feed_list.txt")).expect("Oopsie reading saved file.");
-            println!("{:?}", read_file);
+            let read_file: String = fs::read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
             match read_file.len() {
                 0 => {
                     println!("No existing feed list found. Creating now.");
