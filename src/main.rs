@@ -80,7 +80,6 @@ fn update_feeds(feeds: Vec<FeedMeta>) {
     for feed in feeds {
         let updated_feed: Result<String, reqwest::Error> = get_request(& feed.feed_url);
         match updated_feed {
-            // TODO: save the feeds into a file (or maybe one file per show?)
             Ok(_val) => {
                 println!("Fetched feed: {:?}", feed.feed_url);
                 // TODO: see what directories exist, then make unique directory for this show
