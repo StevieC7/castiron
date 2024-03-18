@@ -1,6 +1,10 @@
 use reqwest::{get, Error as ReqwestError};
 use roxmltree::Document;
-use std::fs;
+use std::{
+    fs::{self, File},
+    io::{copy, Error},
+    path::Path,
+};
 use tokio;
 
 //
@@ -14,7 +18,8 @@ use tokio;
 // parse list of feeds
 // download the single latest episode
 //
-pub fn download_episodes() -> Option<String> {
+#[tokio::main]
+pub async fn download_episodes() -> Option<String> {
     // iterate over existing feeds in /shows directory
     let feed_path_list =
         fs::read_dir("./shows").expect("Show directory is missing or improperly formatted.");
@@ -52,17 +57,24 @@ pub fn download_episodes() -> Option<String> {
     }
     println!("{:?}", feed_collection.len());
     for feed in feed_collection {
-        let fmt_string = feed.as_str();
-        let doc = Document::parse(fmt_string);
+        let feed_contents = feed.as_str();
+        let doc = Document::parse(feed_contents);
         match doc {
             Ok(stuff) => {
-                let outer_val = stuff.descendants().find(|n| n.has_tag_name("item"))?;
-                let inner_val = outer_val
+                let item_node = stuff.descendants().find(|n| n.has_tag_name("item"))?;
+                let title_node = item_node.descendants().find(|n| n.has_tag_name("title"))?;
+                let enclosure_node = item_node
                     .descendants()
                     .find(|n| n.has_tag_name("enclosure"))?;
-                match inner_val.attribute("url") {
-                    Some(thing) => {
-                        println!("{thing}");
+                let title = title_node.text().unwrap();
+                match enclosure_node.attribute("url") {
+                    Some(url) => {
+                        // put stuff here
+                        let download_result = download_episode(url, title).await;
+                        match download_result {
+                            Ok(result) => println!("Download function {result}"),
+                            Err(e) => println!("Download function {:?}", e),
+                        }
                     }
                     None => (),
                 }
@@ -76,8 +88,27 @@ pub fn download_episodes() -> Option<String> {
     None
 }
 
-#[tokio::main]
-async fn get_request(url: &String) -> Result<String, ReqwestError> {
-    let result = get(url).await?.text().await?;
-    Ok(result)
+#[derive(Debug)]
+enum MultiError {
+    Error1(Error),
+    Error2(ReqwestError),
+}
+
+impl From<Error> for MultiError {
+    fn from(e: Error) -> Self {
+        MultiError::Error1(e)
+    }
+}
+impl From<ReqwestError> for MultiError {
+    fn from(e: ReqwestError) -> Self {
+        MultiError::Error2(e)
+    }
+}
+
+async fn download_episode(url: &str, file_name: &str) -> Result<String, MultiError> {
+    let mut directory = File::create(Path::new(format!("./episodes/{file_name}").as_str()))?;
+    let response = get(url).await?;
+    let content = response.text().await?;
+    copy(&mut content.as_bytes(), &mut directory)?;
+    Ok(String::from("Download successful"))
 }
