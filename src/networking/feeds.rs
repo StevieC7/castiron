@@ -1,9 +1,10 @@
+use crate::file_handling::feeds::check_feed_exists;
 use crate::types::feeds::FeedMeta;
+
 use rand::Rng;
-use reqwest::get;
-use serde_json;
+use reqwest::{get, Error};
 use std::{
-    fs::{create_dir_all, read_to_string, OpenOptions},
+    fs::{create_dir_all, OpenOptions},
     io::{Seek, Write},
     path::Path,
 };
@@ -11,7 +12,7 @@ use tokio::io::SeekFrom;
 
 pub fn update_feeds(feeds: Vec<FeedMeta>) {
     for feed in feeds {
-        let updated_feed: Result<String, reqwest::Error> = get_request(&feed.feed_url);
+        let updated_feed: Result<String, Error> = get_request(&feed.feed_url);
         match updated_feed {
             Ok(_val) => {
                 println!("Fetched feed: {:?}", feed.feed_url);
@@ -67,34 +68,8 @@ pub fn update_feeds(feeds: Vec<FeedMeta>) {
     }
 }
 
-fn check_feed_exists(comparison_path: String) -> Result<bool, serde_json::Error> {
-    let read_file: String =
-        read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
-    let contents: Result<Vec<FeedMeta>, serde_json::Error> = serde_json::from_str(&read_file);
-    match contents {
-        Ok(values) => {
-            if values.len() == 0 {
-                return Ok(false);
-            } else {
-                for content in values {
-                    match content.xml_file_path {
-                        Some(val) => {
-                            if val == comparison_path {
-                                return Ok(true);
-                            }
-                        }
-                        None => (),
-                    }
-                }
-                return Ok(false);
-            }
-        }
-        Err(e) => Err(e),
-    }
-}
-
 #[tokio::main]
-async fn get_request(url: &String) -> Result<String, reqwest::Error> {
+async fn get_request(url: &String) -> Result<String, Error> {
     let result = get(url).await?.text().await?;
     Ok(result)
 }

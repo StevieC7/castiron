@@ -1,7 +1,8 @@
 use crate::types::feeds::FeedMeta;
+use serde_json::{from_str, to_string, Error as SerdeError};
 use std::{
     fs::{read_to_string, File, OpenOptions},
-    io::{Error, Seek, SeekFrom, Write},
+    io::{Error as IOError, Seek, SeekFrom, Write},
     path::Path,
 };
 
@@ -24,7 +25,7 @@ pub fn add_feed_to_list(url: String, mut file: File) -> Option<File> {
         feed_url: trimmed_url,
         xml_file_path: None,
     };
-    let json_feed = serde_json::to_string(&feed_meta);
+    let json_feed = to_string(&feed_meta);
     match json_feed {
         Ok(_feed) => {
             println!("Feed url accepted, attempting to save.");
@@ -35,11 +36,12 @@ pub fn add_feed_to_list(url: String, mut file: File) -> Option<File> {
                     println!("No existing feed list found. Creating now.");
                     let mut vect_feed_seed: Vec<FeedMeta> = Vec::new();
                     vect_feed_seed.push(feed_meta);
-                    let vect_feed_seed_string: Result<String, serde_json::Error> =
-                        serde_json::to_string(&vect_feed_seed);
+                    let vect_feed_seed_string: Result<String, SerdeError> =
+                        to_string(&vect_feed_seed);
                     match vect_feed_seed_string {
                         Ok(byte_string) => {
-                            let result: Result<(), Error> = file.write_all(byte_string.as_bytes());
+                            let result: Result<(), IOError> =
+                                file.write_all(byte_string.as_bytes());
                             match result {
                                 Ok(_val) => Some(file),
                                 Err(e) => {
@@ -56,14 +58,12 @@ pub fn add_feed_to_list(url: String, mut file: File) -> Option<File> {
                 }
                 _ => {
                     println!("Existing feed list found.");
-                    let existing_json: Result<Vec<FeedMeta>, serde_json::Error> =
-                        serde_json::from_str(&read_file);
+                    let existing_json: Result<Vec<FeedMeta>, SerdeError> = from_str(&read_file);
                     let mut new_json: String = String::new();
                     match existing_json {
                         Ok(mut val) => {
                             val.push(feed_meta);
-                            let serialized: Result<String, serde_json::Error> =
-                                serde_json::to_string(&val);
+                            let serialized: Result<String, SerdeError> = to_string(&val);
                             match serialized {
                                 Ok(string) => {
                                     println!("Setting new_json equal to this: {string}");
@@ -101,5 +101,31 @@ pub fn add_feed_to_list(url: String, mut file: File) -> Option<File> {
             println!("An error occurred: {e}");
             None
         }
+    }
+}
+
+pub fn check_feed_exists(comparison_path: String) -> Result<bool, SerdeError> {
+    let read_file: String =
+        read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
+    let contents: Result<Vec<FeedMeta>, SerdeError> = from_str(&read_file);
+    match contents {
+        Ok(values) => {
+            if values.len() == 0 {
+                return Ok(false);
+            } else {
+                for content in values {
+                    match content.xml_file_path {
+                        Some(val) => {
+                            if val == comparison_path {
+                                return Ok(true);
+                            }
+                        }
+                        None => (),
+                    }
+                }
+                return Ok(false);
+            }
+        }
+        Err(e) => Err(e),
     }
 }
