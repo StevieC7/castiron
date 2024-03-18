@@ -2,7 +2,7 @@ use reqwest::{get, Error as ReqwestError};
 use roxmltree::Document;
 use std::{
     fs::{self, File},
-    io::{copy, Error},
+    io::{copy, Cursor, Error},
     path::Path,
 };
 use tokio;
@@ -108,7 +108,7 @@ impl From<ReqwestError> for MultiError {
 async fn download_episode(url: &str, file_name: &str) -> Result<String, MultiError> {
     let mut directory = File::create(Path::new(format!("./episodes/{file_name}").as_str()))?;
     let response = get(url).await?;
-    let content = response.text().await?;
-    copy(&mut content.as_bytes(), &mut directory)?;
+    let mut content = Cursor::new(response.bytes().await?);
+    copy(&mut content, &mut directory)?;
     Ok(String::from("Download successful"))
 }
