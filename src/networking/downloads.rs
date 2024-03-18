@@ -1,7 +1,7 @@
-use reqwest::{get, Error};
+use reqwest::{get, Error as ReqwestError};
+use roxmltree::Document;
 use tokio;
 
-use crate::types::feeds::FeedMeta;
 //
 // parse list of feeds
 // check which episodes have been downloaded
@@ -13,10 +13,28 @@ use crate::types::feeds::FeedMeta;
 // parse list of feeds
 // download the single latest episode
 //
-pub fn download_episodes(feeds: Vec<FeedMeta>) {}
+pub fn download_episodes() -> Option<String> {
+    let doc = Document::parse("<title>You Suck</title>");
+    match doc {
+        Ok(stuff) => {
+            let ready_val = stuff.descendants().find(|n| n.has_tag_name("title"))?;
+            match ready_val.text() {
+                Some(thing) => {
+                    println!("{thing}");
+                    Some(thing.to_string())
+                }
+                None => None,
+            }
+        }
+        Err(e) => {
+            println!("{e}");
+            None
+        }
+    }
+}
 
 #[tokio::main]
-async fn get_request(url: &String) -> Result<String, Error> {
+async fn get_request(url: &String) -> Result<String, ReqwestError> {
     let result = get(url).await?.text().await?;
     Ok(result)
 }

@@ -76,7 +76,7 @@ pub fn add_feed_to_list(url: String, mut file: File) -> Option<File> {
                         }
                         Err(e) => println!("Error doing serde stuff: {e}"),
                     }
-                    let seek_result: Result<u64, Error> = file.seek(SeekFrom::Start(0));
+                    let seek_result: Result<u64, IOError> = file.seek(SeekFrom::Start(0));
                     match seek_result {
                         Ok(_) => {
                             let result = Some(file.write_all(new_json.as_bytes()));

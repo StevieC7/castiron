@@ -3,6 +3,7 @@ mod networking;
 mod types;
 
 use crate::file_handling::feeds::{add_feed_to_list, get_feed_list};
+use crate::networking::downloads::download_episodes;
 use crate::networking::feeds::update_feeds;
 use crate::types::feeds::FeedMeta;
 
@@ -10,6 +11,7 @@ use std::fs::File;
 use std::{fs, io, path::Path};
 
 fn main() {
+    download_episodes();
     let open_file: Option<File> = get_feed_list();
     match open_file {
         Some(ref _file) => {
