@@ -56,8 +56,11 @@ pub fn download_episodes() -> Option<String> {
         let doc = Document::parse(fmt_string);
         match doc {
             Ok(stuff) => {
-                let ready_val = stuff.descendants().find(|n| n.has_tag_name("title"))?;
-                match ready_val.text() {
+                let outer_val = stuff.descendants().find(|n| n.has_tag_name("item"))?;
+                let inner_val = outer_val
+                    .descendants()
+                    .find(|n| n.has_tag_name("enclosure"))?;
+                match inner_val.attribute("url") {
                     Some(thing) => {
                         println!("{thing}");
                     }
