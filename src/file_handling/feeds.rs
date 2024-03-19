@@ -1,7 +1,7 @@
 use crate::types::feeds::FeedMeta;
 use serde_json::{from_str, to_string, Error as SerdeError};
 use std::{
-    fs::{self, read_dir, read_to_string, File, OpenOptions},
+    fs::{read_dir, read_to_string, File, OpenOptions},
     io::{Error as IOError, Seek, SeekFrom, Write},
     path::Path,
 };
@@ -24,12 +24,18 @@ pub fn add_feed_to_list(url: String, mut feed_list_file: File) -> Option<File> {
     let read_file =
         read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
     let existing_list: Result<Vec<FeedMeta>, SerdeError> = from_str(read_file.as_str());
-    let existing_list_length = match existing_list {
-        Ok(list) => list.len(),
+    let existing_list_highest_index = match existing_list {
+        Ok(list) => {
+            let mut indices = list.into_iter().map(|x| x.index).collect::<Vec<usize>>();
+            indices.sort();
+            indices.last().unwrap().to_owned()
+        }
         Err(_) => 0,
     };
-    let path_string: String = format!("./shows/{:?}.xml", existing_list_length + 1);
+    let this_feed_index = existing_list_highest_index + 1;
+    let path_string: String = format!("./shows/{:?}.xml", this_feed_index);
     let feed_meta: FeedMeta = FeedMeta {
+        index: this_feed_index,
         feed_url: trimmed_url,
         xml_file_path: Some(path_string),
     };
@@ -121,28 +127,10 @@ pub fn load_feeds_xml() -> Option<Vec<String>> {
     for feed in feed_path_list {
         match feed {
             Ok(directory) => {
-                let feed_xml_file = read_dir(directory.path());
-                match feed_xml_file {
-                    Ok(mut xml_file) => {
-                        let file_path = xml_file.next();
-                        match file_path {
-                            Some(thing) => match thing {
-                                Ok(final_path) => {
-                                    let actual_path = final_path.path();
-                                    let feed_content = read_to_string(actual_path);
-                                    match feed_content {
-                                        Ok(content) => {
-                                            feed_collection.push(content);
-                                        }
-                                        Err(e) => println!("{e} at feed_content match"),
-                                    }
-                                }
-                                Err(e) => println!("{e} at file_path match"),
-                            },
-                            None => (),
-                        }
-                    }
-                    Err(e) => println!("{e} at feed_xml_file match"),
+                let feed_content = read_to_string(directory.path());
+                match feed_content {
+                    Ok(content) => feed_collection.push(content),
+                    Err(e) => println!("{e}"),
                 }
             }
             Err(e) => println!("{e}"),
@@ -175,56 +163,4 @@ pub fn check_episode_exists(file_name: &str) -> bool {
         }
         Err(_) => false,
     }
-}
-
-pub fn add_xml_path_to_feed_list(feed_url: &str, xml_path: &Path) -> Result<(), IOError> {
-    let read_file =
-        read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
-    let contents: Result<Vec<FeedMeta>, SerdeError> = from_str(&read_file);
-    let mut new_json: String = String::new();
-    match contents {
-        Ok(mut feed_list) => {
-            let position_of_existing = feed_list.iter().position(|x| x.feed_url == feed_url);
-            match position_of_existing {
-                Some(pos) => {
-                    let existing_url = &feed_list[pos].feed_url;
-                    feed_list[pos] = FeedMeta {
-                        feed_url: existing_url.to_string(),
-                        xml_file_path: Some(xml_path.to_string_lossy().to_string()),
-                    };
-                    let mut file = fs::OpenOptions::new()
-                        .write(true)
-                        .open(Path::new("./feed_list.json"))
-                        .expect("Could not open feed list to save xml path.");
-                    let serialized: Result<String, SerdeError> = to_string(&feed_list);
-                    match serialized {
-                        Ok(string) => {
-                            println!("Setting new_json equal to this: {string}");
-                            new_json = string
-                        }
-                        Err(e) => {
-                            println!("Error adding feed to accessible file list: {e}")
-                        }
-                    }
-                    let seek_result = file.seek(SeekFrom::Start(0));
-                    match seek_result {
-                        Ok(_) => {
-                            let result = file.write_all(new_json.as_bytes());
-                            match result {
-                                Ok(_) => return Ok(()),
-                                Err(e) => {
-                                    println!("Error line 208 feeds feed_handling");
-                                    return Err(e);
-                                }
-                            }
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-                None => (),
-            }
-        }
-        Err(e) => println!("{e}"),
-    }
-    Ok(())
 }
