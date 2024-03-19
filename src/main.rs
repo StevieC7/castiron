@@ -10,8 +10,9 @@ use crate::types::feeds::FeedMeta;
 use std::fs::File;
 use std::{fs, io, path::Path};
 
-fn main() {
-    download_episodes();
+#[tokio::main]
+async fn main() {
+    download_episodes().await;
     let open_file: Option<File> = get_feed_list();
     match open_file {
         Some(ref _file) => {
@@ -23,7 +24,7 @@ fn main() {
                     let subscribed_feeds: Result<Vec<FeedMeta>, serde_json::Error> =
                         serde_json::from_str(&read_file);
                     match subscribed_feeds {
-                        Ok(feeds) => update_feeds(feeds),
+                        Ok(feeds) => update_feeds(feeds).await,
                         Err(e) => println!("Error reading feed list: {e}"),
                     }
                 }

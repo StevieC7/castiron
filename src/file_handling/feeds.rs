@@ -1,7 +1,7 @@
 use crate::types::feeds::FeedMeta;
 use serde_json::{from_str, to_string, Error as SerdeError};
 use std::{
-    fs::{read_to_string, File, OpenOptions},
+    fs::{read_dir, read_to_string, File, OpenOptions},
     io::{Error as IOError, Seek, SeekFrom, Write},
     path::Path,
 };
@@ -127,5 +127,70 @@ pub fn check_feed_exists(comparison_path: String) -> Result<bool, SerdeError> {
             }
         }
         Err(e) => Err(e),
+    }
+}
+
+pub fn load_feeds_xml() -> Option<Vec<String>> {
+    println!("Loading feeds xml");
+    let feed_path_list =
+        read_dir("./shows").expect("Show directory is missing or improperly formatted.");
+
+    let mut feed_collection = Vec::new();
+    for feed in feed_path_list {
+        match feed {
+            Ok(directory) => {
+                let feed_xml_file = read_dir(directory.path());
+                match feed_xml_file {
+                    Ok(mut xml_file) => {
+                        let file_path = xml_file.next();
+                        match file_path {
+                            Some(thing) => match thing {
+                                Ok(final_path) => {
+                                    let actual_path = final_path.path();
+                                    let feed_content = read_to_string(actual_path);
+                                    match feed_content {
+                                        Ok(content) => {
+                                            feed_collection.push(content);
+                                        }
+                                        Err(e) => println!("{e} at feed_content match"),
+                                    }
+                                }
+                                Err(e) => println!("{e} at file_path match"),
+                            },
+                            None => (),
+                        }
+                    }
+                    Err(e) => println!("{e} at feed_xml_file match"),
+                }
+            }
+            Err(e) => println!("{e}"),
+        }
+    }
+    Some(feed_collection)
+}
+
+pub fn check_episode_exists(file_name: &str) -> bool {
+    let episode_list = read_dir("./episodes");
+    match episode_list {
+        Ok(mut episodes) => {
+            let found_existing = episodes.find(|episode| {
+                let directory_entry = episode.as_ref().ok();
+                match directory_entry {
+                    Some(entry) => {
+                        if entry.file_name() == file_name {
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    None => false,
+                }
+            });
+            match found_existing {
+                Some(_) => true,
+                None => false,
+            }
+        }
+        Err(_) => false,
     }
 }

@@ -1,20 +1,22 @@
 use crate::file_handling::feeds::check_feed_exists;
 use crate::types::feeds::FeedMeta;
 
+use bytes::Bytes;
 use rand::Rng;
 use reqwest::{get, Error};
 use std::{
     fs::{create_dir_all, OpenOptions},
-    io::{Seek, Write},
+    io::{copy, Cursor, Seek},
     path::Path,
 };
 use tokio::io::SeekFrom;
 
-pub fn update_feeds(feeds: Vec<FeedMeta>) {
+pub async fn update_feeds(feeds: Vec<FeedMeta>) {
     for feed in feeds {
-        let updated_feed: Result<String, Error> = get_request(&feed.feed_url);
+        let updated_feed: Result<Cursor<Bytes>, Error> = get_request(&feed.feed_url).await;
+        // TODO: read from bytes far enough to get the feed metadata and parse some unique identifier to use for file name
         match updated_feed {
-            Ok(_val) => {
+            Ok(mut val) => {
                 println!("Fetched feed: {:?}", feed.feed_url);
                 let mut path_string: String =
                     format!("./shows/{:?}", rand::thread_rng().gen_range(0..10000));
@@ -41,12 +43,12 @@ pub fn update_feeds(feeds: Vec<FeedMeta>) {
                                                 file.seek(SeekFrom::Start(0));
                                             match seek_result {
                                                 Ok(_) => {
-                                                    let result = file.write_all(_val.as_bytes());
+                                                    let result = copy(&mut val, &mut file);
                                                     // TODO: write the directory name to the list of feeds to reference later
                                                     match result {
-                                                    Ok(_) => println!("Successfully created xml file for show: {:?}", feed.feed_url),
-                                                    Err(e) => println!("Error writing fetched data to xml file: {e}")
-                                                }
+                                                        Ok(_) => println!("Successfully created xml file for show: {:?}", feed.feed_url),
+                                                        Err(e) => println!("Error writing fetched data to xml file: {e}")
+                                                    }
                                                 }
                                                 Err(e) => {
                                                     println!("Error seeking for write head: {e}")
@@ -68,8 +70,8 @@ pub fn update_feeds(feeds: Vec<FeedMeta>) {
     }
 }
 
-#[tokio::main]
-async fn get_request(url: &String) -> Result<String, Error> {
-    let result = get(url).await?.text().await?;
-    Ok(result)
+async fn get_request(url: &String) -> Result<Cursor<Bytes>, Error> {
+    let result = get(url).await?;
+    let content = Cursor::new(result.bytes().await?);
+    Ok(content)
 }
