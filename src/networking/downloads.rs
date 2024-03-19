@@ -23,35 +23,40 @@ pub async fn download_episodes() -> Option<String> {
         let doc = Document::parse(feed_contents);
         match doc {
             Ok(stuff) => {
-                let item_node = stuff.descendants().find(|n| n.has_tag_name("item"))?;
-                let guid_node = item_node.descendants().find(|n| n.has_tag_name("guid"))?;
-                let enclosure_node = item_node
-                    .descendants()
-                    .find(|n| n.has_tag_name("enclosure"))?;
-                let guid = guid_node.text().unwrap();
-                let file_name = match enclosure_node.attribute("type") {
-                    Some("audio/aac") => format!("{guid}.aac"),
-                    Some("audio/mpeg") => format!("{guid}.mp3"),
-                    Some("audio/ogg") => format!("{guid}.oga"),
-                    Some("audio/opus") => format!("{guid}.opus"),
-                    Some("audio/wav") => format!("{guid}.wav"),
-                    Some("audio/webm") => format!("{guid}.weba"),
-                    Some(_) => format!("{guid}.mp3"),
-                    None => "fail.mp3".to_string(),
-                };
-                if check_episode_exists(file_name.as_str()) {
-                    println!("Episode already exists {:?}", file_name);
-                    continue;
-                }
-                match enclosure_node.attribute("url") {
-                    Some(url) => {
-                        let download_result = download_episode(url, file_name.as_str()).await;
-                        match download_result {
-                            Ok(result) => println!("Download function {result}"),
-                            Err(e) => println!("Download function {:?}", e),
+                let item_node = stuff.descendants().find(|n| n.has_tag_name("item"));
+                match item_node {
+                    Some(i_node) => {
+                        let guid_node = i_node.descendants().find(|n| n.has_tag_name("guid"))?;
+                        let enclosure_node =
+                            i_node.descendants().find(|n| n.has_tag_name("enclosure"))?;
+                        let guid = guid_node.text().unwrap();
+                        let file_name = match enclosure_node.attribute("type") {
+                            Some("audio/aac") => format!("{guid}.aac"),
+                            Some("audio/mpeg") => format!("{guid}.mp3"),
+                            Some("audio/ogg") => format!("{guid}.oga"),
+                            Some("audio/opus") => format!("{guid}.opus"),
+                            Some("audio/wav") => format!("{guid}.wav"),
+                            Some("audio/webm") => format!("{guid}.weba"),
+                            Some(_) => format!("{guid}.mp3"),
+                            None => "fail.mp3".to_string(),
+                        };
+                        if check_episode_exists(file_name.as_str()) {
+                            println!("Episode already exists {:?}", file_name);
+                            continue;
+                        }
+                        match enclosure_node.attribute("url") {
+                            Some(url) => {
+                                let download_result =
+                                    download_episode(url, file_name.as_str()).await;
+                                match download_result {
+                                    Ok(result) => println!("Download function {result}"),
+                                    Err(e) => println!("Download function {:?}", e),
+                                }
+                            }
+                            None => continue,
                         }
                     }
-                    None => continue,
+                    None => println!("got no node"),
                 }
             }
             Err(e) => {
