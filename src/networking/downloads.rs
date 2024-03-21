@@ -15,6 +15,7 @@ use crate::file_handling::feeds::{check_episode_exists, load_feeds_xml};
 // if there is room within the user's limit and filesystem, download the episodes that have not been downloaded
 //
 
+// TODO: refactor to obtain as many of latest episodes as user specifies
 pub async fn download_episodes() -> Option<String> {
     // iterate over existing feeds in /shows directory
     let feed_collection = load_feeds_xml().unwrap_or(Vec::new());
