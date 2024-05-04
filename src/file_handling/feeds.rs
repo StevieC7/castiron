@@ -118,10 +118,9 @@ pub fn add_feed_to_list(url: String, mut feed_list_file: File) -> Option<File> {
     }
 }
 
-pub fn load_feeds_xml() -> Option<Vec<String>> {
+pub fn load_feeds_xml() -> Result<Vec<String>, IOError> {
     println!("Loading feeds xml");
-    let feed_path_list =
-        read_dir("./shows").expect("Show directory is missing or improperly formatted.");
+    let feed_path_list = read_dir("./shows")?;
 
     let mut feed_collection = Vec::new();
     for feed in feed_path_list {
@@ -136,7 +135,7 @@ pub fn load_feeds_xml() -> Option<Vec<String>> {
             Err(e) => println!("{e}"),
         }
     }
-    Some(feed_collection)
+    Ok(feed_collection)
 }
 
 pub fn check_episode_exists(file_name: &str) -> bool {
