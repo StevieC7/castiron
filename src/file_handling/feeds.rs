@@ -1,8 +1,10 @@
+use crate::networking::feeds::get_request;
 use crate::types::feeds::FeedMeta;
-use serde_json::{from_str, to_string, Error as SerdeError};
+use roxmltree::Document;
+use serde_json::{from_str, to_string, Error as SerdeError, Value};
 use std::{
     fs::{read_dir, read_to_string, File, OpenOptions},
-    io::{Error as IOError, Seek, SeekFrom, Write},
+    io::{read_to_string as read_cursor_to_string, Error as IOError, Seek, SeekFrom, Write},
     path::Path,
 };
 
@@ -19,7 +21,7 @@ pub fn get_feed_list() -> Option<File> {
     }
 }
 
-pub fn add_feed_to_list(url: String, mut feed_list_file: File) -> Option<File> {
+pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Option<File> {
     let trimmed_url = url.trim().to_string();
     let read_file =
         read_to_string(Path::new("./feed_list.json")).expect("Oopsie reading saved file.");
@@ -32,13 +34,39 @@ pub fn add_feed_to_list(url: String, mut feed_list_file: File) -> Option<File> {
         }
         Err(_) => 0,
     };
+    // TODO: show the user a preview of parsed show title and confirm before adding
     let this_feed_index = existing_list_highest_index + 1;
     let path_string: String = format!("./shows/{:?}.xml", this_feed_index);
-    let feed_meta: FeedMeta = FeedMeta {
+    let mut feed_meta: FeedMeta = FeedMeta {
         index: this_feed_index,
-        feed_url: trimmed_url,
+        feed_url: trimmed_url.to_owned(),
         xml_file_path: Some(path_string),
     };
+
+    if let Ok(feed_content_reader) = get_request(&trimmed_url).await {
+        if let Ok(feed_content) = read_cursor_to_string(feed_content_reader) {
+            if let Ok(parsed_feed) = Document::parse(feed_content.as_str()) {
+                if let Some(channel) = parsed_feed
+                    .descendants()
+                    .find(|n| n.has_tag_name("channel"))
+                {
+                    if let Some(title) = channel.descendants().find(|n| n.has_tag_name("title")) {
+                        feed_meta.xml_file_path =
+                            Some(format!("./shows/{:?}.xml", title.text().unwrap()))
+                    }
+                } else {
+                    println!("A deserialization error occurred while fetching feed preview.")
+                }
+            } else {
+                println!("A deserialization error occurred while fetching feed preview.")
+            }
+        } else {
+            println!("An error occurred while fetching feed preview.")
+        }
+    } else {
+        println!("An error occurred while fetching feed preview.")
+    }
+
     let json_feed = to_string(&feed_meta);
     match json_feed {
         Ok(_) => {

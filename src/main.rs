@@ -47,7 +47,7 @@ async fn main() {
                     io::stdin()
                         .read_line(&mut input_url)
                         .expect("Failed to read input.");
-                    let feed_result: Option<File> = add_feed_to_list(input_url, file);
+                    let feed_result: Option<File> = add_feed_to_list(input_url, file).await;
                     match feed_result {
                         Some(_file) => {
                             let contents = fs::read_to_string(Path::new("./feed_list.json"))

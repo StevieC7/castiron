@@ -50,7 +50,7 @@ pub async fn update_feeds(feeds: Vec<FeedMeta>) {
     }
 }
 
-async fn get_request(url: &String) -> Result<Cursor<Bytes>, Error> {
+pub async fn get_request(url: &String) -> Result<Cursor<Bytes>, Error> {
     let result = get(url).await?;
     let content = Cursor::new(result.bytes().await?);
     Ok(content)
