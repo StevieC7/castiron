@@ -1,7 +1,7 @@
 use crate::networking::feeds::get_request;
 use crate::types::feeds::FeedMeta;
 use roxmltree::Document;
-use serde_json::{from_str, to_string, Error as SerdeError, Value};
+use serde_json::{from_str, to_string, Error as SerdeError};
 use std::{
     fs::{read_dir, read_to_string, File, OpenOptions},
     io::{read_to_string as read_cursor_to_string, Error as IOError, Seek, SeekFrom, Write},
