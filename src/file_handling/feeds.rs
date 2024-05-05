@@ -8,17 +8,15 @@ use std::{
     path::Path,
 };
 
-pub fn get_feed_list() -> Option<File> {
+pub fn get_feed_list() -> Result<File, IOError> {
     let path = Path::new("./feed_list.json");
     let mut file_options = OpenOptions::new();
-    let file = file_options.create(true).read(true).write(true).open(path);
-    match file {
-        Ok(file) => Some(file),
-        Err(e) => {
-            println!("Error finding feed list file: {}", e);
-            None
-        }
-    }
+    let file = file_options
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(path)?;
+    Ok(file)
 }
 
 pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Option<File> {
