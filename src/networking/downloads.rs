@@ -41,8 +41,9 @@ pub async fn download_episodes() -> Option<String> {
                             Some(_) => format!("{guid}.mp3"),
                             None => "fail.mp3".to_string(),
                         };
-                        if check_episode_exists(file_name.as_str()) {
+                        if let Ok(true) = check_episode_exists(file_name.as_str()) {
                             println!("Episode already exists {:?}", file_name);
+                        } else {
                             continue;
                         }
                         match enclosure_node.attribute("url") {
