@@ -5,17 +5,34 @@ mod types;
 use crate::file_handling::feeds::{add_feed_to_list, get_feed_list};
 use crate::networking::downloads::download_episodes;
 use crate::networking::feeds::update_feeds;
-use crate::types::feeds::FeedMeta;
+use crate::types::{errors::CustomError, feeds::FeedMeta};
 
-use std::fs::File;
 use std::{fs, io, path::Path};
 
 #[tokio::main]
 async fn main() {
-    download_episodes().await;
-    let open_file: Option<File> = get_feed_list();
+    let download_result = download_episodes().await;
+    match download_result {
+        Ok(_) => println!("Finished downloading episodes."),
+        Err(e) => match e {
+            CustomError::ErrorMessage(message) => println!("{:?}", message),
+            CustomError::IOError(_) => {
+                println!("IO Error while adding feed to list")
+            }
+            CustomError::ReqwestError(_) => {
+                println!("Network request error while adding feed to list.")
+            }
+            CustomError::SerdeJsonError(_) => {
+                println!("Serialization error while adding feed to list.")
+            }
+            CustomError::XmlError(_) => {
+                println!("XML Error while adding feed to list")
+            }
+        },
+    }
+    let open_file = get_feed_list();
     match open_file {
-        Some(ref _file) => {
+        Ok(_) => {
             let read_file: String = fs::read_to_string(Path::new("./feed_list.json"))
                 .expect("Oopsie reading saved file.");
             match read_file.len() {
@@ -30,7 +47,7 @@ async fn main() {
                 }
             }
         }
-        None => println!("Can't update feeds due to unreadable feed list."),
+        Err(_) => println!("Can't update feeds due to unreadable feed list."),
     }
     println!("ADD podcast or LIST shows?");
     let mut mode_selection: String = String::new();
@@ -41,23 +58,37 @@ async fn main() {
         "ADD" => {
             println!("You picked ADD");
             match open_file {
-                Some(file) => {
+                Ok(file) => {
                     println!("What feed do you want to follow?");
                     let mut input_url: String = String::new();
                     io::stdin()
                         .read_line(&mut input_url)
                         .expect("Failed to read input.");
-                    let feed_result: Option<File> = add_feed_to_list(input_url, file).await;
+                    let feed_result = add_feed_to_list(input_url, file).await;
                     match feed_result {
-                        Some(_file) => {
+                        Ok(_file) => {
                             let contents = fs::read_to_string(Path::new("./feed_list.json"))
                                 .expect("Oopsie reading saved file");
                             println!("-----Added successfully, contents below-----\n{contents}\n-------------------");
                         }
-                        None => println!("Error saving feed to list."),
+                        Err(e) => match e {
+                            CustomError::ErrorMessage(message) => println!("{:?}", message),
+                            CustomError::IOError(_) => {
+                                println!("IO Error while adding feed to list")
+                            }
+                            CustomError::ReqwestError(_) => {
+                                println!("Network request error while adding feed to list.")
+                            }
+                            CustomError::SerdeJsonError(_) => {
+                                println!("Serialization error while adding feed to list.")
+                            }
+                            CustomError::XmlError(_) => {
+                                println!("XML Error while adding feed to list")
+                            }
+                        },
                     }
                 }
-                None => println!("Cannot add if feed list does not exist."),
+                Err(_) => println!("Cannot add if feed list does not exist."),
             }
         }
         "LIST" => {
