@@ -49,7 +49,6 @@ pub async fn download_episodes() -> Result<(), CustomError> {
                                         };
                                         if let Ok(true) = check_episode_exists(file_name.as_str()) {
                                             println!("Episode already exists {:?}", file_name);
-                                        } else {
                                             continue;
                                         }
                                         match e_node.attribute("url") {

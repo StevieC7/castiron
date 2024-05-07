@@ -87,7 +87,7 @@ pub async fn tui_loop(open_file: Result<File, Error>) {
         }
         "DB_LIST" => {
             if let Ok(urls) = get_feed_list_database() {
-                println!("You did it yay: {:?}", urls)
+                urls.iter().for_each(|n| println!("{:?}: {:?}", n.0, n.1));
             } else {
                 println!("something wrong")
             }
