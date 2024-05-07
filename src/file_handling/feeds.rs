@@ -27,11 +27,19 @@ pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
     connection.execute(query)?;
     Ok(())
 }
+
 pub fn list_feeds_database() -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = "SELECT * FROM feeds";
     connection.iterate(query, |n| {
-        println!("{:?}", n);
+        let key_val_tuple = n.iter().find(|val| val.0 == "url");
+        match key_val_tuple {
+            Some(wrapped_url) => match wrapped_url.1 {
+                Some(url) => println!("{:?}", url),
+                None => (),
+            },
+            None => (),
+        }
         true
     })?;
     Ok(())
