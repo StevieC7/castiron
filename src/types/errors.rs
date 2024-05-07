@@ -1,22 +1,10 @@
 #[derive(Debug)]
 pub enum CustomError {
     IOError(std::io::Error),
-    SerdeJsonError(serde_json::Error),
     ReqwestError(reqwest::Error),
+    SerdeJsonError(serde_json::Error),
     XmlError(roxmltree::Error),
-    ErrorMessage(ErrorMessage),
-}
-
-impl From<serde_json::Error> for CustomError {
-    fn from(err: serde_json::Error) -> Self {
-        CustomError::SerdeJsonError(err)
-    }
-}
-
-impl From<std::io::Error> for CustomError {
-    fn from(err: std::io::Error) -> Self {
-        CustomError::IOError(err)
-    }
+    SqlError(sqlite::Error),
 }
 
 impl From<reqwest::Error> for CustomError {
@@ -31,27 +19,20 @@ impl From<roxmltree::Error> for CustomError {
     }
 }
 
-#[derive(Debug)]
-pub struct ErrorMessage {
-    details: String,
-}
-
-impl ErrorMessage {
-    fn new(msg: &str) -> ErrorMessage {
-        ErrorMessage {
-            details: msg.to_string(),
-        }
+impl From<serde_json::Error> for CustomError {
+    fn from(err: serde_json::Error) -> Self {
+        CustomError::SerdeJsonError(err)
     }
 }
 
-impl std::fmt::Display for ErrorMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", &self.details)
+impl From<std::io::Error> for CustomError {
+    fn from(err: std::io::Error) -> Self {
+        CustomError::IOError(err)
     }
 }
 
-impl std::error::Error for ErrorMessage {
-    fn description(&self) -> &str {
-        &self.details
+impl From<sqlite::Error> for CustomError {
+    fn from(err: sqlite::Error) -> Self {
+        CustomError::SqlError(err)
     }
 }

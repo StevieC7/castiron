@@ -2,6 +2,7 @@ use crate::networking::feeds::get_request;
 use crate::types::{errors::CustomError, feeds::FeedMeta};
 use roxmltree::Document;
 use serde_json::{from_str, to_string, Error as SerdeError};
+use sqlite::open;
 use std::{
     fs::{read_dir, read_to_string, File, OpenOptions},
     io::{read_to_string as read_cursor_to_string, Error as IOError, Seek, SeekFrom, Write},
@@ -17,6 +18,23 @@ pub fn get_feed_list() -> Result<File, IOError> {
         .write(true)
         .open(path)?;
     Ok(file)
+}
+
+pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT); INSERT INTO feeds (url,xml_file_path) VALUES ('{url}', NULL);");
+    println!("Query:{q}", q = query);
+    connection.execute(query)?;
+    Ok(())
+}
+pub fn list_feeds_database() -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = "SELECT * FROM feeds";
+    connection.iterate(query, |n| {
+        println!("{:?}", n);
+        true
+    })?;
+    Ok(())
 }
 
 pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Result<File, CustomError> {
@@ -53,7 +71,6 @@ pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Result<F
         println!("A deserialization error occurred while fetching feed preview.")
     }
 
-    let json_feed = to_string(&feed_meta)?;
     println!("Feed url accepted, attempting to save.");
     match read_file.len() {
         0 => {
@@ -61,7 +78,7 @@ pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Result<F
             let mut vect_feed_seed: Vec<FeedMeta> = Vec::new();
             vect_feed_seed.push(feed_meta);
             let vect_feed_seed_string = to_string(&vect_feed_seed)?;
-            let result = feed_list_file.write_all(vect_feed_seed_string.as_bytes())?;
+            feed_list_file.write_all(vect_feed_seed_string.as_bytes())?;
             Ok(feed_list_file)
         }
         _ => {
@@ -84,8 +101,8 @@ pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Result<F
                 }
                 Err(e) => println!("Error doing serde stuff: {e}"),
             }
-            let seek_result = feed_list_file.seek(SeekFrom::Start(0))?;
-            let result = feed_list_file.write_all(new_json.as_bytes())?;
+            feed_list_file.seek(SeekFrom::Start(0))?;
+            feed_list_file.write_all(new_json.as_bytes())?;
             println!("Wrote to file successfully");
             Ok(feed_list_file)
         }
@@ -119,7 +136,7 @@ pub fn check_episode_exists(file_name: &str) -> Result<bool, IOError> {
                 false
             }
         }
-        Err(e) => false,
+        Err(_e) => false,
     });
     match found_existing {
         Some(_thing) => Ok(true),

@@ -2,7 +2,9 @@ mod file_handling;
 mod networking;
 mod types;
 
-use crate::file_handling::feeds::{add_feed_to_list, get_feed_list};
+use crate::file_handling::feeds::{
+    add_feed_to_database, add_feed_to_list, get_feed_list, list_feeds_database,
+};
 use crate::networking::downloads::download_episodes;
 use crate::networking::feeds::update_feeds;
 use crate::types::{errors::CustomError, feeds::FeedMeta};
@@ -15,7 +17,6 @@ async fn main() {
     match download_result {
         Ok(_) => println!("Finished downloading episodes."),
         Err(e) => match e {
-            CustomError::ErrorMessage(message) => println!("{:?}", message),
             CustomError::IOError(_) => {
                 println!("IO Error while adding feed to list")
             }
@@ -27,6 +28,9 @@ async fn main() {
             }
             CustomError::XmlError(_) => {
                 println!("XML Error while adding feed to list")
+            }
+            CustomError::SqlError(_) => {
+                println!("SQL Error while adding feed to list")
             }
         },
     }
@@ -49,7 +53,7 @@ async fn main() {
         }
         Err(_) => println!("Can't update feeds due to unreadable feed list."),
     }
-    println!("ADD podcast or LIST shows?");
+    println!("ADD podcast, LIST shows, DB add, DB_LIST");
     let mut mode_selection: String = String::new();
     io::stdin()
         .read_line(&mut mode_selection)
@@ -72,7 +76,6 @@ async fn main() {
                             println!("-----Added successfully, contents below-----\n{contents}\n-------------------");
                         }
                         Err(e) => match e {
-                            CustomError::ErrorMessage(message) => println!("{:?}", message),
                             CustomError::IOError(_) => {
                                 println!("IO Error while adding feed to list")
                             }
@@ -85,6 +88,9 @@ async fn main() {
                             CustomError::XmlError(_) => {
                                 println!("XML Error while adding feed to list")
                             }
+                            CustomError::SqlError(_) => {
+                                println!("SQL Error while adding feed to list")
+                            }
                         },
                     }
                 }
@@ -93,20 +99,43 @@ async fn main() {
         }
         "LIST" => {
             println!("------Feeds you are following------");
-            let read_file: String = fs::read_to_string(Path::new("./feed_list.json"))
-                .expect("Oopsie reading saved file.");
-            let contents: Result<Vec<FeedMeta>, serde_json::Error> =
-                serde_json::from_str(&read_file);
-            match contents {
-                Ok(values) => {
-                    for content in values {
-                        println!("{}", content.feed_url)
+            let read_file = fs::read_to_string(Path::new("./feed_list.json"));
+            match read_file {
+                Ok(file) => {
+                    let contents: Result<Vec<FeedMeta>, serde_json::Error> =
+                        serde_json::from_str(&file);
+                    match contents {
+                        Ok(values) => {
+                            for content in values {
+                                println!("{}", content.feed_url)
+                            }
+                        }
+                        Err(e) => println!("{e}"),
                     }
                 }
                 Err(e) => println!("{e}"),
             }
         }
-        // TODO: put a function in to read URLS from a file
+        "DB" => {
+            println!("What feed do you want to follow?");
+            let mut input_url: String = String::new();
+            io::stdin()
+                .read_line(&mut input_url)
+                .expect("Failed to read input.");
+            let result = add_feed_to_database(input_url);
+            match result {
+                Ok(_) => println!("Added to db."),
+                Err(e) => println!("Error: {:?}", e),
+            }
+        }
+        "DB_LIST" => {
+            if let Ok(()) = list_feeds_database() {
+                println!("You did it yay")
+            } else {
+                println!("something wrong")
+            }
+        }
+        // TODO: put a function in to read URLS from an OPML file
         _ => println!("You picked wrong."),
     }
 }
