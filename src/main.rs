@@ -3,7 +3,7 @@ mod networking;
 mod types;
 
 use crate::file_handling::feeds::{
-    add_feed_to_database, add_feed_to_list, get_feed_list, list_feeds_database,
+    add_feed_to_database, add_feed_to_list, get_feed_list, get_feed_list_database,
 };
 use crate::networking::downloads::download_episodes;
 use crate::networking::feeds::update_feeds;
@@ -129,8 +129,8 @@ async fn main() {
             }
         }
         "DB_LIST" => {
-            if let Ok(()) = list_feeds_database() {
-                println!("You did it yay")
+            if let Ok(urls) = get_feed_list_database() {
+                println!("You did it yay: {:?}", urls)
             } else {
                 println!("something wrong")
             }

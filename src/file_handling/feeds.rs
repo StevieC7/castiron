@@ -28,21 +28,22 @@ pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
     Ok(())
 }
 
-pub fn list_feeds_database() -> Result<(), CustomError> {
+pub fn get_feed_list_database() -> Result<Vec<String>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = "SELECT * FROM feeds";
+    let mut feeds: Vec<String> = Vec::new();
     connection.iterate(query, |n| {
         let key_val_tuple = n.iter().find(|val| val.0 == "url");
         match key_val_tuple {
             Some(wrapped_url) => match wrapped_url.1 {
-                Some(url) => println!("{:?}", url),
+                Some(url) => feeds.push(url.to_string()),
                 None => (),
             },
             None => (),
         }
         true
     })?;
-    Ok(())
+    Ok(feeds)
 }
 
 pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Result<File, CustomError> {
