@@ -1,43 +1,32 @@
-use crate::networking::feeds::get_request;
 use crate::types::{errors::CustomError, feeds::FeedMeta};
-use roxmltree::Document;
-use serde_json::{from_str, to_string, Error as SerdeError};
 use sqlite::open;
 use std::{
-    fs::{read_dir, read_to_string, File, OpenOptions},
-    io::{read_to_string as read_cursor_to_string, Error as IOError, Seek, SeekFrom, Write},
+    fs::{read_dir, read_to_string},
+    io::Error as IOError,
     path::Path,
 };
-
-pub fn get_feed_list() -> Result<File, IOError> {
-    let path = Path::new("./feed_list.json");
-    let mut file_options = OpenOptions::new();
-    let file = file_options
-        .create(true)
-        .read(true)
-        .write(true)
-        .open(path)?;
-    Ok(file)
-}
 
 pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT); INSERT INTO feeds (url,xml_file_path) VALUES ('{url}', NULL);");
-    println!("Query:{q}", q = query);
     connection.execute(query)?;
     Ok(())
 }
 
-pub fn get_feed_list_database() -> Result<Vec<(String, String)>, CustomError> {
+pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = "SELECT * FROM feeds";
-    let mut feeds: Vec<(String, String)> = Vec::new();
+    let mut feeds: Vec<FeedMeta> = Vec::new();
     connection.iterate(query, |n| {
-        let mut result_tuple: (String, String) = (String::new(), String::new());
+        let mut result_tuple: FeedMeta = FeedMeta {
+            index: 0,
+            feed_url: String::new(),
+            xml_file_path: None,
+        };
         let id_kv_tuple = n.iter().find(|val| val.0 == "id");
         match id_kv_tuple {
             Some(wrapped_id) => match wrapped_id.1 {
-                Some(id) => result_tuple.0 = id.to_string(),
+                Some(id) => result_tuple.index = id.to_string().parse().unwrap(),
                 None => (),
             },
             None => (),
@@ -45,7 +34,15 @@ pub fn get_feed_list_database() -> Result<Vec<(String, String)>, CustomError> {
         let url_kv_tuple = n.iter().find(|val| val.0 == "url");
         match url_kv_tuple {
             Some(wrapped_url) => match wrapped_url.1 {
-                Some(url) => result_tuple.1 = url.to_string(),
+                Some(url) => result_tuple.feed_url = url.to_string(),
+                None => (),
+            },
+            None => (),
+        }
+        let xml_kv_tuple = n.iter().find(|val| val.0 == "xml_file_path");
+        match xml_kv_tuple {
+            Some(wrapped_xml) => match wrapped_xml.1 {
+                Some(xml) => result_tuple.xml_file_path = Some(xml.to_string()),
                 None => (),
             },
             None => (),
@@ -54,78 +51,6 @@ pub fn get_feed_list_database() -> Result<Vec<(String, String)>, CustomError> {
         true
     })?;
     Ok(feeds)
-}
-
-pub async fn add_feed_to_list(url: String, mut feed_list_file: File) -> Result<File, CustomError> {
-    let trimmed_url = url.trim().to_string();
-    let read_file = read_to_string(Path::new("./feed_list.json"))?;
-    let existing_list: Result<Vec<FeedMeta>, SerdeError> = from_str(read_file.as_str());
-    let existing_list_highest_index = match existing_list {
-        Ok(list) => {
-            let mut indices = list.into_iter().map(|x| x.index).collect::<Vec<usize>>();
-            indices.sort();
-            indices.last().unwrap().to_owned()
-        }
-        Err(_) => 0,
-    };
-    // TODO: show the user a preview of parsed show title and confirm before adding
-    let this_feed_index = existing_list_highest_index + 1;
-    let path_string: String = format!("./shows/{:?}.xml", this_feed_index);
-    let mut feed_meta = FeedMeta {
-        index: this_feed_index,
-        feed_url: trimmed_url.to_owned(),
-        xml_file_path: Some(path_string),
-    };
-    let feed_content_reader = get_request(&trimmed_url).await?;
-    let feed_content = read_cursor_to_string(feed_content_reader)?;
-    let parsed_feed = Document::parse(feed_content.as_str())?;
-    if let Some(channel) = parsed_feed
-        .descendants()
-        .find(|n| n.has_tag_name("channel"))
-    {
-        if let Some(title) = channel.descendants().find(|n| n.has_tag_name("title")) {
-            feed_meta.xml_file_path = Some(format!("./shows/{:?}.xml", title.text().unwrap()))
-        }
-    } else {
-        println!("A deserialization error occurred while fetching feed preview.")
-    }
-
-    println!("Feed url accepted, attempting to save.");
-    match read_file.len() {
-        0 => {
-            println!("No existing feed list found. Creating now.");
-            let mut vect_feed_seed: Vec<FeedMeta> = Vec::new();
-            vect_feed_seed.push(feed_meta);
-            let vect_feed_seed_string = to_string(&vect_feed_seed)?;
-            feed_list_file.write_all(vect_feed_seed_string.as_bytes())?;
-            Ok(feed_list_file)
-        }
-        _ => {
-            println!("Existing feed list found.");
-            let existing_json: Result<Vec<FeedMeta>, SerdeError> = from_str(&read_file);
-            let mut new_json: String = String::new();
-            match existing_json {
-                Ok(mut val) => {
-                    val.push(feed_meta);
-                    let serialized: Result<String, SerdeError> = to_string(&val);
-                    match serialized {
-                        Ok(string) => {
-                            println!("Setting new_json equal to this: {string}");
-                            new_json = string
-                        }
-                        Err(e) => {
-                            println!("Error adding feed to accessible file list: {e}")
-                        }
-                    }
-                }
-                Err(e) => println!("Error doing serde stuff: {e}"),
-            }
-            feed_list_file.seek(SeekFrom::Start(0))?;
-            feed_list_file.write_all(new_json.as_bytes())?;
-            println!("Wrote to file successfully");
-            Ok(feed_list_file)
-        }
-    }
 }
 
 pub fn load_feeds_xml() -> Result<Vec<String>, IOError> {
