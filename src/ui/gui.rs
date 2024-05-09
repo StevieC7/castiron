@@ -1,8 +1,11 @@
 use iced::widget::{button, column, text};
 use iced::{Alignment, Element, Sandbox};
 
-pub struct Counter {
+use super::widgets::Episode;
+
+pub struct AppLayout {
     value: i32,
+    episode: Episode,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -11,11 +14,14 @@ pub enum Message {
     DecrementPressed,
 }
 
-impl Sandbox for Counter {
+impl Sandbox for AppLayout {
     type Message = Message;
 
     fn new() -> Self {
-        Self { value: 0 }
+        Self {
+            value: 0,
+            episode: Episode::new("yep".to_string()),
+        }
     }
 
     fn title(&self) -> String {
@@ -38,6 +44,7 @@ impl Sandbox for Counter {
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),
             button("Decrement").on_press(Message::DecrementPressed),
+            self.episode.view()
         ]
         .padding(20)
         .align_items(Alignment::Center)
