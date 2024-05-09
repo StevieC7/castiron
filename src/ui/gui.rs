@@ -1,18 +1,14 @@
 use iced::widget::{button, column, text};
 use iced::{Alignment, Element, Sandbox};
 
-use super::widgets::Episode;
-
 pub struct Counter {
     value: i32,
-    episodes: Vec<Episode>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
     IncrementPressed,
     DecrementPressed,
-    OpenPlayer,
 }
 
 impl Sandbox for Counter {
@@ -33,9 +29,6 @@ impl Sandbox for Counter {
             }
             Message::DecrementPressed => {
                 self.value -= 1;
-            }
-            Message::OpenPlayer => {
-                println!("It's happening")
             }
         }
     }
