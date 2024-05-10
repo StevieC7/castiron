@@ -1,4 +1,4 @@
-use iced::widget::{button, column, row, text};
+use iced::widget::{column, row, text};
 use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
@@ -7,14 +7,11 @@ use crate::types::feeds::FeedMeta;
 use super::widgets::{Feed, Feeds};
 
 pub struct AppLayout {
-    value: i32,
     feeds: Option<Feeds>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    IncrementPressed,
-    DecrementPressed,
     FeedsFound(Result<Vec<FeedMeta>, String>),
 }
 
@@ -26,10 +23,7 @@ impl Application for AppLayout {
 
     fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
         (
-            Self {
-                value: 0,
-                feeds: None,
-            },
+            Self { feeds: None },
             Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
         )
     }
@@ -40,14 +34,6 @@ impl Application for AppLayout {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::IncrementPressed => {
-                self.value += 1;
-                Command::none()
-            }
-            Message::DecrementPressed => {
-                self.value -= 1;
-                Command::none()
-            }
             Message::FeedsFound(feeds) => match feeds {
                 Err(_) => Command::none(),
                 Ok(data) => {
@@ -70,14 +56,3 @@ impl Application for AppLayout {
         }
     }
 }
-
-// impl AppLayout {
-//     fn render_feeds(feeds: &Vec<FeedMeta>) -> Element<Message> {
-//         feeds
-//             .iter()
-//             .fold(Column::new().spacing(10), |col, content| {
-//                 col.push(text(content.to_owned().feed_url))
-//             })
-//             .into()
-//     }
-// }
