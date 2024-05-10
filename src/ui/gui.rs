@@ -1,4 +1,4 @@
-use iced::widget::{button, column, text};
+use iced::widget::{button, column, row, text};
 use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
@@ -63,17 +63,10 @@ impl Application for AppLayout {
     }
 
     fn view(&self) -> Element<Message> {
-        let column = column![
-            button("Increment").on_press(Message::IncrementPressed),
-            text(self.value).size(50),
-            button("Decrement").on_press(Message::DecrementPressed),
-            // self.feeds.as_ref().unwrap().view()
-        ]
-        .padding(20)
-        .align_items(Alignment::Center);
+        let column = column![].padding(20).align_items(Alignment::Center);
         match self.feeds.as_ref() {
-            Some(feeds) => column.push(feeds.view()).into(),
-            None => column.into(),
+            Some(feeds) => row![text("Left Column"), column.push(feeds.view())].into(),
+            None => row![text("Left Column"), column].into(),
         }
     }
 }
