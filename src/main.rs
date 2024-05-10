@@ -3,7 +3,7 @@ mod networking;
 mod types;
 mod ui;
 
-use iced::{Sandbox, Settings};
+use iced::{Application, Settings};
 use ui::gui::AppLayout;
 
 #[tokio::main]

@@ -1,53 +1,86 @@
 use iced::widget::{button, column, text};
-use iced::{Alignment, Element, Sandbox};
+use iced::Theme;
+use iced::{executor, Alignment, Application, Command, Element};
 
-use super::widgets::Episode;
+use crate::types::feeds::FeedMeta;
+
+use super::widgets::Feeds;
 
 pub struct AppLayout {
     value: i32,
-    episode: Episode,
+    feeds: Option<Feeds>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Message {
     IncrementPressed,
     DecrementPressed,
+    FeedsFound(Result<Vec<FeedMeta>, String>),
 }
 
-impl Sandbox for AppLayout {
+impl Application for AppLayout {
+    type Executor = executor::Default;
     type Message = Message;
+    type Theme = Theme;
+    type Flags = ();
 
-    fn new() -> Self {
-        Self {
-            value: 0,
-            episode: Episode::new("yep".to_string()),
-        }
+    fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
+        (
+            Self {
+                value: 0,
+                feeds: None,
+            },
+            Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
+        )
     }
 
     fn title(&self) -> String {
         String::from("Counter - Iced")
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::IncrementPressed => {
                 self.value += 1;
+                Command::none()
             }
             Message::DecrementPressed => {
                 self.value -= 1;
+                Command::none()
             }
+            Message::FeedsFound(feeds) => match feeds {
+                Err(_) => Command::none(),
+                Ok(data) => {
+                    self.feeds = Some(Feeds::new(data));
+                    Command::none()
+                }
+            },
         }
     }
 
     fn view(&self) -> Element<Message> {
-        column![
+        let column = column![
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),
             button("Decrement").on_press(Message::DecrementPressed),
-            self.episode.view()
+            // self.feeds.as_ref().unwrap().view()
         ]
         .padding(20)
-        .align_items(Alignment::Center)
-        .into()
+        .align_items(Alignment::Center);
+        match self.feeds.as_ref() {
+            Some(feeds) => column.push(feeds.view()).into(),
+            None => column.into(),
+        }
     }
 }
+
+// impl AppLayout {
+//     fn render_feeds(feeds: &Vec<FeedMeta>) -> Element<Message> {
+//         feeds
+//             .iter()
+//             .fold(Column::new().spacing(10), |col, content| {
+//                 col.push(text(content.to_owned().feed_url))
+//             })
+//             .into()
+//     }
+// }
