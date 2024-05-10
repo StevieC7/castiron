@@ -7,21 +7,23 @@ use iced::Element;
 
 #[derive(Clone)]
 pub struct Feeds {
-    feeds: Vec<FeedMeta>,
+    feeds: Vec<Feed>,
 }
 
 impl Feeds {
-    pub fn new(feeds: Vec<FeedMeta>) -> Self {
+    pub fn new(feeds: Vec<Feed>) -> Self {
         Self { feeds }
     }
     pub fn view(&self) -> Element<Message> {
-        let feeds = self.feeds.to_owned();
-        feeds
+        let col = Column::new();
+        let feeds: Element<Message> = self
+            .feeds
             .iter()
             .fold(Column::new().spacing(10), |col, content| {
-                col.push(text(content.feed_url.to_owned()))
+                col.push(content.view())
             })
-            .into()
+            .into();
+        col.push(feeds).into()
     }
     pub async fn fetch_feeds() -> Result<Vec<FeedMeta>, String> {
         let result = get_feed_list_database();
@@ -32,5 +34,19 @@ impl Feeds {
                 e
             ))),
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Feed {
+    feed_url: String,
+}
+
+impl Feed {
+    pub fn new(feed_url: String) -> Self {
+        Self { feed_url }
+    }
+    pub fn view(&self) -> Element<Message> {
+        text(self.feed_url.to_owned()).into()
     }
 }

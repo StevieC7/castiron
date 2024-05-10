@@ -4,7 +4,7 @@ use iced::{executor, Alignment, Application, Command, Element};
 
 use crate::types::feeds::FeedMeta;
 
-use super::widgets::Feeds;
+use super::widgets::{Feed, Feeds};
 
 pub struct AppLayout {
     value: i32,
@@ -51,7 +51,11 @@ impl Application for AppLayout {
             Message::FeedsFound(feeds) => match feeds {
                 Err(_) => Command::none(),
                 Ok(data) => {
-                    self.feeds = Some(Feeds::new(data));
+                    let feed_list = data
+                        .iter()
+                        .map(|n| Feed::new(n.feed_url.to_owned()))
+                        .collect();
+                    self.feeds = Some(Feeds::new(feed_list));
                     Command::none()
                 }
             },
