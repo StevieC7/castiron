@@ -3,7 +3,7 @@ use crate::types::feeds::FeedMeta;
 
 use super::gui::Message;
 use iced::widget::container::Appearance;
-use iced::widget::{container, text, Column};
+use iced::widget::{button, container, row, text, Column};
 use iced::{Border, Color, Element, Shadow};
 
 #[derive(Clone)]
@@ -48,26 +48,29 @@ impl Feed {
         Self { feed_url }
     }
     pub fn view(&self) -> Element<Message> {
-        container(text(self.feed_url.to_owned()))
-            .style(Appearance {
-                background: Some(iced::Background::Color(Color {
-                    r: 0.5,
-                    g: 0.5,
-                    b: 0.5,
-                    a: 1.0,
-                })),
-                text_color: None,
-                border: Border {
-                    color: Color::default(),
-                    width: 0.0,
-                    radius: [5.0, 5.0, 5.0, 5.0].into(),
-                },
-                shadow: Shadow::default(),
-            })
-            .max_width(500)
-            .center_x()
-            .center_y()
-            .padding(20)
-            .into()
+        container(row!(
+            text(self.feed_url.to_owned()),
+            button(text("Episodes")).on_press(Message::ViewEpisodes)
+        ))
+        .style(Appearance {
+            background: Some(iced::Background::Color(Color {
+                r: 0.5,
+                g: 0.5,
+                b: 0.5,
+                a: 1.0,
+            })),
+            text_color: None,
+            border: Border {
+                color: Color::default(),
+                width: 0.0,
+                radius: [5.0, 5.0, 5.0, 5.0].into(),
+            },
+            shadow: Shadow::default(),
+        })
+        .max_width(500)
+        .center_x()
+        .center_y()
+        .padding(20)
+        .into()
     }
 }
