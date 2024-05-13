@@ -14,11 +14,28 @@ pub fn read_config() -> Result<CastironConfig, CustomError> {
     Ok(config)
 }
 
-pub fn create_config(config: CastironConfig) -> Result<(), CustomError> {
-    let config_file_path = Path::new("./castiron_config.json");
-    let config_file = File::create(config_file_path)?;
-    let mut writer = BufWriter::new(config_file);
-    to_writer(&mut writer, &config)?;
-    writer.flush()?;
-    Ok(())
+pub fn create_config(config: Option<CastironConfig>) -> Result<(), CustomError> {
+    match config {
+        Some(conf) => {
+            let config_file_path = Path::new("./castiron_config.json");
+            let config_file = File::create(config_file_path)?;
+            let mut writer = BufWriter::new(config_file);
+            to_writer(&mut writer, &conf)?;
+            writer.flush()?;
+            Ok(())
+        }
+        None => {
+            let conf = CastironConfig {
+                auto_dl_new: true,
+                auto_rm_after_listen: true,
+                dark_mode: false,
+            };
+            let config_file_path = Path::new("./castiron_config.json");
+            let config_file = File::create(config_file_path)?;
+            let mut writer = BufWriter::new(config_file);
+            to_writer(&mut writer, &conf)?;
+            writer.flush()?;
+            Ok(())
+        }
+    }
 }

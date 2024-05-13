@@ -1,3 +1,4 @@
+use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::feeds::get_feed_list_database;
 use crate::types::config::CastironConfig;
 use crate::types::feeds::FeedMeta;
@@ -75,33 +76,68 @@ impl Feed {
 
 #[derive(Clone)]
 pub struct Config {
-    values: Option<CastironConfig>,
+    values: CastironConfig,
 }
 
 impl Config {
-    pub fn new(values: Option<CastironConfig>) -> Self {
+    pub fn new(values: CastironConfig) -> Self {
         Self { values }
     }
 
     pub fn view(&self) -> Element<Message> {
-        match self.values.to_owned() {
-            Some(vals) => {
-                let column = Column::new();
-                column
-                    .push(Toggler::new(
-                        String::from("Automatically download new episodes?"),
-                        vals.auto_dl_new,
-                        move |n| {
-                            Message::SaveConfig(CastironConfig {
-                                auto_dl_new: n,
-                                auto_rm_after_listen: vals.auto_rm_after_listen,
-                                dark_mode: vals.dark_mode,
-                            })
-                        },
-                    ))
-                    .into()
+        let vals = self.values.to_owned();
+        let column = Column::new();
+        column
+            .push(Toggler::new(
+                String::from("Automatically download new episodes?"),
+                vals.auto_dl_new,
+                move |n| {
+                    Message::SaveConfig(Some(CastironConfig {
+                        auto_dl_new: n,
+                        auto_rm_after_listen: vals.auto_rm_after_listen,
+                        dark_mode: vals.dark_mode,
+                    }))
+                },
+            ))
+            .into()
+    }
+
+    pub async fn fetch_config() -> Result<CastironConfig, String> {
+        let result = read_config();
+        match result {
+            Ok(conf) => Ok(conf),
+            Err(_) => {
+                let result = create_config(None);
+                match result {
+                    Ok(_) => {
+                        let new_result = read_config();
+                        match new_result {
+                            Ok(conf) => Ok(conf),
+                            Err(e) => Err(String::from(format!("Error fetching config: {:?}", e))),
+                        }
+                    }
+                    Err(e) => Err(String::from(format!("Error fetching config: {:?}", e))),
+                }
             }
-            None => container(text("Config setup failed.")).into(),
+        }
+    }
+
+    pub async fn update_config(config: Option<CastironConfig>) -> Result<(), String> {
+        match config {
+            Some(conf) => {
+                let result = create_config(Some(conf));
+                match result {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(String::from(format!("Error fetching config: {:?}", e))),
+                }
+            }
+            None => {
+                let result = create_config(None);
+                match result {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(String::from(format!("Error fetching config: {:?}", e))),
+                }
+            }
         }
     }
 }

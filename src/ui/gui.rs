@@ -2,25 +2,26 @@ use iced::widget::{button, column, row, text};
 use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
-use crate::file_handling::config::{create_config, read_config};
+use crate::file_handling::config::create_config;
 use crate::types::config::CastironConfig;
 use crate::types::{feeds::FeedMeta, ui::AppView};
 
-use super::widgets::{Feed, Feeds};
+use super::widgets::{Config, Feed, Feeds};
 
 pub struct AppLayout {
     app_view: AppView,
     feeds: Option<Feeds>,
-    castiron_config: Option<CastironConfig>,
+    castiron_config: Option<Config>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     FeedsFound(Result<Vec<FeedMeta>, String>),
+    ConfigFound(Result<CastironConfig, String>),
     ViewEpisodes,
     ViewFeeds,
     ViewConfig,
-    SaveConfig(CastironConfig),
+    SaveConfig(Option<CastironConfig>),
 }
 
 impl Application for AppLayout {
@@ -36,7 +37,10 @@ impl Application for AppLayout {
                 app_view: AppView::Feeds,
                 castiron_config: None,
             },
-            Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
+            Command::batch([
+                Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
+                Command::perform(Config::fetch_config(), Message::ConfigFound),
+            ]),
         )
     }
 
@@ -57,6 +61,13 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
+            Message::ConfigFound(config) => match config {
+                Err(_) => Command::none(),
+                Ok(data) => {
+                    self.castiron_config = Some(Config::new(data));
+                    Command::none()
+                }
+            },
             Message::ViewEpisodes => {
                 self.app_view = AppView::Episodes;
                 Command::none()
@@ -72,16 +83,7 @@ impl Application for AppLayout {
             Message::SaveConfig(config) => {
                 let update_config_result = create_config(config);
                 match update_config_result {
-                    Ok(_) => {
-                        let read_result = read_config();
-                        match read_result {
-                            Ok(updated_config) => {
-                                self.castiron_config = Some(updated_config);
-                                Command::none()
-                            }
-                            Err(_) => Command::none(),
-                        }
-                    }
+                    Ok(_) => Command::perform(Config::fetch_config(), Message::ConfigFound),
                     Err(_) => Command::none(),
                 }
             }
@@ -102,7 +104,10 @@ impl Application for AppLayout {
                 None => row![column, text("No feeds to show.")].into(),
             },
             AppView::Episodes => row![column, "Episodes go here."].into(),
-            AppView::Config => row![column, "Config goes here."].into(),
+            AppView::Config => match self.castiron_config.as_ref() {
+                Some(config) => row![column, config.view()].into(),
+                None => row![column, text("No config to show.")].into(),
+            },
         }
     }
 }
