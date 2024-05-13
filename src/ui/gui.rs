@@ -16,6 +16,7 @@ pub enum Message {
     FeedsFound(Result<Vec<FeedMeta>, String>),
     ViewEpisodes,
     ViewFeeds,
+    ViewConfig,
 }
 
 impl Application for AppLayout {
@@ -59,13 +60,18 @@ impl Application for AppLayout {
                 self.app_view = AppView::Feeds;
                 Command::none()
             }
+            Message::ViewConfig => {
+                self.app_view = AppView::Config;
+                Command::none()
+            }
         }
     }
 
     fn view(&self) -> Element<Message> {
         let column = column![
             button(text("Feeds")).on_press(Message::ViewFeeds),
-            button(text("Episodes")).on_press(Message::ViewEpisodes)
+            button(text("Episodes")).on_press(Message::ViewEpisodes),
+            button(text("Config")).on_press(Message::ViewConfig),
         ]
         .padding(20)
         .align_items(Alignment::Center);
@@ -75,6 +81,7 @@ impl Application for AppLayout {
                 None => row![column, text("No feeds to show.")].into(),
             },
             AppView::Episodes => row![column, "Episodes go here."].into(),
+            AppView::Config => row![column, "Config goes here."].into(),
         }
     }
 }
