@@ -63,19 +63,18 @@ impl Application for AppLayout {
     }
 
     fn view(&self) -> Element<Message> {
+        let column = column![
+            button(text("Feeds")).on_press(Message::ViewFeeds),
+            button(text("Episodes")).on_press(Message::ViewEpisodes)
+        ]
+        .padding(20)
+        .align_items(Alignment::Center);
         match self.app_view {
-            AppView::Feeds => {
-                let column = column![].padding(20).align_items(Alignment::Center);
-                match self.feeds.as_ref() {
-                    Some(feeds) => row![text("Left Column"), column.push(feeds.view())].into(),
-                    None => row![text("Left Column"), column].into(),
-                }
-            }
-            AppView::Episodes => column![
-                text("Episodes go here"),
-                button(text("Back")).on_press(Message::ViewFeeds)
-            ]
-            .into(),
+            AppView::Feeds => match self.feeds.as_ref() {
+                Some(feeds) => row![column, feeds.view()].into(),
+                None => row![column, text("No feeds to show.")].into(),
+            },
+            AppView::Episodes => row![column, "Episodes go here."].into(),
         }
     }
 }
