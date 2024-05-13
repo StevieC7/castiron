@@ -1,9 +1,10 @@
 use crate::file_handling::feeds::get_feed_list_database;
+use crate::types::config::CastironConfig;
 use crate::types::feeds::FeedMeta;
 
 use super::gui::Message;
 use iced::widget::container::Appearance;
-use iced::widget::{container, row, text, Column};
+use iced::widget::{container, row, text, Column, Toggler};
 use iced::{Border, Color, Element, Shadow};
 
 #[derive(Clone)]
@@ -69,5 +70,38 @@ impl Feed {
             .center_y()
             .padding(20)
             .into()
+    }
+}
+
+#[derive(Clone)]
+pub struct Config {
+    values: Option<CastironConfig>,
+}
+
+impl Config {
+    pub fn new(values: Option<CastironConfig>) -> Self {
+        Self { values }
+    }
+
+    pub fn view(&self) -> Element<Message> {
+        match self.values.to_owned() {
+            Some(vals) => {
+                let column = Column::new();
+                column
+                    .push(Toggler::new(
+                        String::from("Automatically download new episodes?"),
+                        vals.auto_dl_new,
+                        move |n| {
+                            Message::SaveConfig(CastironConfig {
+                                auto_dl_new: n,
+                                auto_rm_after_listen: vals.auto_rm_after_listen,
+                                dark_mode: vals.dark_mode,
+                            })
+                        },
+                    ))
+                    .into()
+            }
+            None => container(text("Config setup failed.")).into(),
+        }
     }
 }

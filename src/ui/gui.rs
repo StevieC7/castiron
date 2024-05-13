@@ -2,6 +2,8 @@ use iced::widget::{button, column, row, text};
 use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
+use crate::file_handling::config::{create_config, read_config};
+use crate::types::config::CastironConfig;
 use crate::types::{feeds::FeedMeta, ui::AppView};
 
 use super::widgets::{Feed, Feeds};
@@ -9,6 +11,7 @@ use super::widgets::{Feed, Feeds};
 pub struct AppLayout {
     app_view: AppView,
     feeds: Option<Feeds>,
+    castiron_config: Option<CastironConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -17,6 +20,7 @@ pub enum Message {
     ViewEpisodes,
     ViewFeeds,
     ViewConfig,
+    SaveConfig(CastironConfig),
 }
 
 impl Application for AppLayout {
@@ -30,6 +34,7 @@ impl Application for AppLayout {
             Self {
                 feeds: None,
                 app_view: AppView::Feeds,
+                castiron_config: None,
             },
             Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
         )
@@ -63,6 +68,22 @@ impl Application for AppLayout {
             Message::ViewConfig => {
                 self.app_view = AppView::Config;
                 Command::none()
+            }
+            Message::SaveConfig(config) => {
+                let update_config_result = create_config(config);
+                match update_config_result {
+                    Ok(_) => {
+                        let read_result = read_config();
+                        match read_result {
+                            Ok(updated_config) => {
+                                self.castiron_config = Some(updated_config);
+                                Command::none()
+                            }
+                            Err(_) => Command::none(),
+                        }
+                    }
+                    Err(_) => Command::none(),
+                }
             }
         }
     }
