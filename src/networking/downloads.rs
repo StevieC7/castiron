@@ -7,14 +7,16 @@ use std::{
 };
 
 use crate::{
-    file_handling::feeds::{check_episode_exists, get_feed_id_by_url, load_feeds_xml},
+    file_handling::{
+        episodes::add_episode_to_database,
+        feeds::{check_episode_exists, get_feed_id_by_url, load_feeds_xml},
+    },
     types::{episodes::Episode, errors::CustomError},
 };
 
 use super::feeds::update_feeds;
 
 pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
-    // TODO: upsert all the episodes that exist
     update_feeds().await?;
     let feed_collection = load_feeds_xml()?;
     let mut episodes: Vec<Episode> = Vec::new();
@@ -54,33 +56,21 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
                         let enclosure_node =
                             i_node.descendants().find(|n| n.has_tag_name("enclosure"));
                         match enclosure_node {
-                            Some(e_node) => {
-                                let file_name = match e_node.attribute("type") {
-                                    Some("audio/aac") => format!("{guid}.aac"),
-                                    Some("audio/mpeg") => format!("{guid}.mp3"),
-                                    Some("audio/ogg") => format!("{guid}.oga"),
-                                    Some("audio/opus") => format!("{guid}.opus"),
-                                    Some("audio/wav") => format!("{guid}.wav"),
-                                    Some("audio/webm") => format!("{guid}.weba"),
-                                    Some(_) => format!("{guid}.mp3"),
-                                    None => "fail.mp3".to_string(),
-                                };
-                                match e_node.attribute("url") {
-                                    Some(url) => episodes.push(Episode {
-                                        guid: guid.to_string(),
-                                        file_path: Some(file_name),
-                                        title: episode_title.to_string(),
-                                        date: episode_date.to_string(),
-                                        played: false,
-                                        played_seconds: 0,
-                                        feed_id,
-                                        url: url.to_string(),
-                                    }),
-                                    None => {
-                                        println!("No url found for {:?}.", g_node.text())
-                                    }
+                            Some(e_node) => match e_node.attribute("url") {
+                                Some(url) => episodes.push(Episode {
+                                    guid: guid.to_string(),
+                                    file_path: None,
+                                    title: episode_title.to_string(),
+                                    date: episode_date.to_string(),
+                                    played: false,
+                                    played_seconds: 0,
+                                    feed_id,
+                                    url: url.to_string(),
+                                }),
+                                None => {
+                                    println!("No url found for {:?}.", g_node.text())
                                 }
-                            }
+                            },
                             None => (),
                         }
                     }
@@ -89,6 +79,10 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
             }
             None => println!("got no node"),
         }
+    }
+    // TODO: write bulk upsert function to use here
+    for episode in episodes.into_iter() {
+        add_episode_to_database(episode)?;
     }
     Ok(None)
 }
