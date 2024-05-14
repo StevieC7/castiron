@@ -1,8 +1,9 @@
-use iced::widget::{button, column, row, text};
+use iced::widget::{button, column, row, text, text_input};
 use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
 use crate::file_handling::config::create_config;
+use crate::file_handling::feeds::add_feed_to_database;
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta, ui::AppView};
 
@@ -12,6 +13,7 @@ pub struct AppLayout {
     app_view: AppView,
     feeds: Option<Feeds>,
     castiron_config: Option<Config>,
+    feed_to_add: String,
 }
 
 #[derive(Debug, Clone)]
@@ -23,6 +25,8 @@ pub enum Message {
     ViewFeeds,
     ViewConfig,
     SaveConfig(Option<CastironConfig>),
+    AddFeed,
+    FeedToAddUpdated(String),
 }
 
 impl Application for AppLayout {
@@ -37,6 +41,7 @@ impl Application for AppLayout {
                 feeds: None,
                 app_view: AppView::Feeds,
                 castiron_config: None,
+                feed_to_add: String::new(),
             },
             Command::batch([
                 Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
@@ -93,6 +98,18 @@ impl Application for AppLayout {
                     Err(_) => Command::none(),
                 }
             }
+            Message::AddFeed => {
+                let result = add_feed_to_database(self.feed_to_add.to_owned());
+                self.feed_to_add = String::new();
+                match result {
+                    Ok(_) => Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
+                    Err(_) => Command::none(),
+                }
+            }
+            Message::FeedToAddUpdated(val) => {
+                self.feed_to_add = val;
+                Command::none()
+            }
         }
     }
 
@@ -101,6 +118,8 @@ impl Application for AppLayout {
             button(text("Feeds")).on_press(Message::ViewFeeds),
             button(text("Episodes")).on_press(Message::ViewEpisodes),
             button(text("Config")).on_press(Message::ViewConfig),
+            text_input("add feed", self.feed_to_add.as_str()).on_input(Message::FeedToAddUpdated),
+            button(text("Add")).on_press(Message::AddFeed),
         ]
         .padding(20)
         .align_items(Alignment::Center);
