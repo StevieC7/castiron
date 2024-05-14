@@ -14,7 +14,7 @@ pub fn read_config() -> Result<CastironConfig, CustomError> {
     Ok(config)
 }
 
-pub fn create_config(config: Option<CastironConfig>) -> Result<(), CustomError> {
+pub fn create_config(config: Option<CastironConfig>) -> Result<CastironConfig, CustomError> {
     match config {
         Some(conf) => {
             let config_file_path = Path::new("./castiron_config.json");
@@ -22,7 +22,7 @@ pub fn create_config(config: Option<CastironConfig>) -> Result<(), CustomError> 
             let mut writer = BufWriter::new(config_file);
             to_writer(&mut writer, &conf)?;
             writer.flush()?;
-            Ok(())
+            Ok(conf)
         }
         None => {
             let conf = CastironConfig {
@@ -35,7 +35,7 @@ pub fn create_config(config: Option<CastironConfig>) -> Result<(), CustomError> 
             let mut writer = BufWriter::new(config_file);
             to_writer(&mut writer, &conf)?;
             writer.flush()?;
-            Ok(())
+            Ok(conf)
         }
     }
 }
