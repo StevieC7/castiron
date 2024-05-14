@@ -69,8 +69,14 @@ impl Application for AppLayout {
                 }
             },
             Message::EpisodesSynced(episodes) => match episodes {
-                Err(_) => Command::none(),
-                Ok(_) => Command::none(),
+                Err(e) => {
+                    println!("Episode sync failed: {:?}", e);
+                    Command::none()
+                }
+                Ok(_) => {
+                    println!("Episodes synced");
+                    Command::none()
+                }
             },
             Message::ConfigFound(config) => match config {
                 Err(_) => Command::none(),

@@ -9,6 +9,7 @@ use std::{
 use tokio::io::SeekFrom;
 
 pub async fn update_feeds() -> Result<(), CustomError> {
+    // TODO: refactor so that individual feeds don't cause whole operation to fail, excluding valid feeds from succeeding
     let feeds = get_feed_list_database()?;
     for feed in feeds {
         let mut updated_feed = get_request(&feed.feed_url).await?;
