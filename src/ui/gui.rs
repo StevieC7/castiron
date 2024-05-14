@@ -4,9 +4,9 @@ use iced::{executor, Alignment, Application, Command, Element};
 
 use crate::file_handling::config::create_config;
 use crate::types::config::CastironConfig;
-use crate::types::{feeds::FeedMeta, ui::AppView};
+use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta, ui::AppView};
 
-use super::widgets::{Config, Feed, Feeds};
+use super::widgets::{Config, Episodes, Feed, Feeds};
 
 pub struct AppLayout {
     app_view: AppView,
@@ -17,6 +17,7 @@ pub struct AppLayout {
 #[derive(Debug, Clone)]
 pub enum Message {
     FeedsFound(Result<Vec<FeedMeta>, String>),
+    EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
     ConfigFound(Result<CastironConfig, String>),
     ViewEpisodes,
     ViewFeeds,
@@ -40,6 +41,7 @@ impl Application for AppLayout {
             Command::batch([
                 Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
                 Command::perform(Config::fetch_config(), Message::ConfigFound),
+                Command::perform(Episodes::fetch_episodes(), Message::EpisodesSynced),
             ]),
         )
     }
@@ -60,6 +62,10 @@ impl Application for AppLayout {
                     self.feeds = Some(Feeds::new(feed_list));
                     Command::none()
                 }
+            },
+            Message::EpisodesSynced(episodes) => match episodes {
+                Err(_) => Command::none(),
+                Ok(_) => Command::none(),
             },
             Message::ConfigFound(config) => match config {
                 Err(_) => Command::none(),

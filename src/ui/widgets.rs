@@ -1,5 +1,6 @@
 use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::feeds::get_feed_list_database;
+use crate::networking::downloads::sync_episode_list;
 use crate::types::config::CastironConfig;
 use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
@@ -138,10 +139,13 @@ impl Episodes {
             .into();
         col.push(episodes).into()
     }
-    pub async fn fetch_episodes() -> Result<Vec<EpisodeData>, String> {
-        let result = get_episode_list_database();
+    pub async fn fetch_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
+        let result = sync_episode_list().await;
         match result {
-            Ok(res) => Ok(res),
+            Ok(res) => match res {
+                Some(val) => Ok(Some(val)),
+                None => Ok(None),
+            },
             Err(e) => Err(String::from(format!(
                 "Error fetching episodes from database: {:?}",
                 e

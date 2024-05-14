@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     file_handling::{
-        episodes::add_episode_to_database,
+        episodes::{add_episode_to_database, get_episode_list_database},
         feeds::{check_episode_exists, get_feed_id_by_url, load_feeds_xml},
     },
     types::{episodes::Episode, errors::CustomError},
@@ -84,7 +84,8 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
     for episode in episodes.into_iter() {
         add_episode_to_database(episode)?;
     }
-    Ok(None)
+    let result = get_episode_list_database()?;
+    Ok(Some(result))
 }
 
 //
