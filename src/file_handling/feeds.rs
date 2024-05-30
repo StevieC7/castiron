@@ -87,3 +87,21 @@ pub fn check_episode_exists(file_name: &str) -> Result<bool, IOError> {
         None => Ok(false),
     }
 }
+
+pub fn get_feed_id_by_url(url: &String) -> Result<i32, CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("SELECT id FROM feeds WHERE url = '{url}' LIMIT 1;");
+    let mut result = 0;
+    connection.iterate(query, |n| {
+        let id_kv_tuple = n.iter().find(|val| val.0 == "id");
+        match id_kv_tuple {
+            Some(wrapped_id) => match wrapped_id.1 {
+                Some(id) => result = id.to_string().parse().unwrap(),
+                None => (),
+            },
+            None => (),
+        }
+        true
+    });
+    Ok(result)
+}

@@ -7,9 +7,86 @@ use std::{
 };
 
 use crate::{
-    file_handling::feeds::{check_episode_exists, load_feeds_xml},
-    types::errors::CustomError,
+    file_handling::{
+        episodes::{add_episode_to_database, get_episode_list_database},
+        feeds::{check_episode_exists, get_feed_id_by_url, load_feeds_xml},
+    },
+    types::{episodes::Episode, errors::CustomError},
 };
+
+use super::feeds::update_feeds;
+
+pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
+    update_feeds().await?;
+    let feed_collection = load_feeds_xml()?;
+    let mut episodes: Vec<Episode> = Vec::new();
+    for feed in feed_collection {
+        let feed_contents = feed.as_str();
+        let mut feed_url = String::new();
+        let doc = Document::parse(feed_contents)?;
+        let channel_node = doc.descendants().find(|n| n.has_tag_name("channel"));
+        match channel_node {
+            Some(c_node) => {
+                let link_node = c_node.descendants().find(|n| n.has_tag_name("atom:link"));
+                match link_node {
+                    Some(link) => feed_url = link.text().unwrap().to_string(),
+                    None => (),
+                }
+            }
+            None => (),
+        }
+        let feed_id = get_feed_id_by_url(&feed_url)?;
+        let item_node = doc.descendants().find(|n| n.has_tag_name("item"));
+        match item_node {
+            Some(i_node) => {
+                let title_node = i_node.descendants().find(|n| n.has_tag_name("title"));
+                let episode_title = match title_node {
+                    Some(t) => t.text().unwrap(),
+                    None => "",
+                };
+                let date_node = i_node.descendants().find(|n| n.has_tag_name("pubDate"));
+                let episode_date = match date_node {
+                    Some(d) => d.text().unwrap(),
+                    None => "",
+                };
+                let guid_node = i_node.descendants().find(|n| n.has_tag_name("guid"));
+                match guid_node {
+                    Some(g_node) => {
+                        let guid = g_node.text().unwrap();
+                        let enclosure_node =
+                            i_node.descendants().find(|n| n.has_tag_name("enclosure"));
+                        match enclosure_node {
+                            Some(e_node) => match e_node.attribute("url") {
+                                Some(url) => episodes.push(Episode {
+                                    guid: guid.to_string(),
+                                    file_path: None,
+                                    title: episode_title.to_string(),
+                                    date: episode_date.to_string(),
+                                    played: false,
+                                    played_seconds: 0,
+                                    feed_id,
+                                    url: url.to_string(),
+                                }),
+                                None => {
+                                    println!("No url found for {:?}.", g_node.text())
+                                }
+                            },
+                            None => (),
+                        }
+                    }
+                    None => (),
+                }
+            }
+            None => println!("got no node"),
+        }
+    }
+    // TODO: write bulk upsert function to use here
+    for episode in episodes.into_iter() {
+        add_episode_to_database(episode)?;
+    }
+    let result = get_episode_list_database()?;
+    Ok(Some(result))
+}
 
 //
 // parse list of feeds
@@ -17,8 +94,8 @@ use crate::{
 // check user specified limit for episodes kept
 // if there is room within the user's limit and filesystem, download the episodes that have not been downloaded
 //
-
 // TODO: refactor to obtain as many of latest episodes as user specifies
+// TODO: refactor to use database as source of truth
 pub async fn download_episodes() -> Result<(), CustomError> {
     let feed_collection = load_feeds_xml().unwrap_or(Vec::new());
     for feed in feed_collection {
