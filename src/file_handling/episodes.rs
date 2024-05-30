@@ -69,7 +69,14 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
             Some(wrapped_played) => match wrapped_played.1 {
                 Some(played) => {
                     println!("played: {:?}", played);
-                    result_tuple.played = played.parse::<bool>().unwrap()
+                    result_tuple.played = match played.parse::<i8>() {
+                        Ok(parsed) => match parsed {
+                            0 => false,
+                            1 => true,
+                            _ => false,
+                        },
+                        Err(_) => false,
+                    }
                 }
                 None => (),
             },
@@ -113,4 +120,71 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
         true
     })?;
     Ok(episodes)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::{copy, remove_file};
+
+    use super::*;
+
+    #[test]
+    fn test_add_episode() {
+        // TODO: spin up temp database, make clone of existing and put it back in place when done
+        if Path::new("./database.sqlite").exists() {
+            let existing_db_file_path = Path::new("./database.sqlite");
+            let new_db_file = Path::new("./temp_db.sqlite");
+            let copy_result = copy(&existing_db_file_path, &new_db_file).is_ok();
+            let delete_old_result = remove_file(&existing_db_file_path).is_ok();
+            // TODO: check for both of these to be true before proceeding with this branch
+            if let true = copy_result {
+                assert!(add_episode_to_database(Episode {
+                    date: String::from("2024/05/30"),
+                    guid: String::from("jkdfjskluizuien1"),
+                    title: String::from("Interesting Show Title"),
+                    url: String::from("https://www.google.com"),
+                    feed_id: 998,
+                    played_seconds: 0,
+                    file_path: None,
+                    played: false,
+                })
+                .is_ok());
+                if let true = copy(&new_db_file, &existing_db_file_path).is_ok() {
+                    let result = remove_file(&new_db_file);
+                    match result {
+                        Ok(_) => assert!(true),
+                        Err(_) => panic!("Test failed due to test internals."),
+                    };
+                } else {
+                    panic!("Test failed due to test internals.")
+                }
+            } else {
+                panic!("Test failed due to test internals.")
+            };
+        } else {
+            assert!(add_episode_to_database(Episode {
+                date: String::from("2024/05/30"),
+                guid: String::from("jkdfjskluizuien1"),
+                title: String::from("Interesting Show Title"),
+                url: String::from("https://www.google.com"),
+                feed_id: 999,
+                played_seconds: 0,
+                file_path: None,
+                played: false,
+            })
+            .is_ok())
+        }
+    }
+
+    #[test]
+    fn test_get_episode_list() {
+        let result = get_episode_list_database();
+        match result {
+            Ok(_) => assert!(true),
+            Err(e) => {
+                println!("{:?}", e);
+                assert!(false)
+            }
+        }
+    }
 }

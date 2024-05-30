@@ -102,6 +102,6 @@ pub fn get_feed_id_by_url(url: &String) -> Result<i32, CustomError> {
             None => (),
         }
         true
-    });
+    })?;
     Ok(result)
 }
