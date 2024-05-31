@@ -126,8 +126,6 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
 mod tests {
     use std::fs::{copy, remove_file};
 
-    use crate::file_handling::feeds::get_feed_list_database;
-
     use super::*;
 
     #[test]
