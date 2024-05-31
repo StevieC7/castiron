@@ -8,3 +8,8 @@ This is still being written. It is not full-featured. This is a project being bu
 - Clone code
 - `cargo run`
 - To use GUI, pass the gui flag like so: `cargo run -- --gui`
+
+## Running Tests
+Because the unit tests each request a connection to the same database, run tests in single thread mode, like this:
+
+`cargo test -- --test-threads=1`
