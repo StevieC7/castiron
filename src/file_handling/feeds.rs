@@ -56,11 +56,11 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
 pub fn load_feeds_xml() -> Result<Vec<String>, IOError> {
     println!("Loading feeds xml");
     let feed_path_list = read_dir("./shows")?;
-
     let mut feed_collection = Vec::new();
     for feed in feed_path_list {
         match feed {
             Ok(directory) => {
+                println!("{:?}", directory);
                 let feed_content = read_to_string(directory.path())?;
                 feed_collection.push(feed_content);
             }
@@ -104,4 +104,58 @@ pub fn get_feed_id_by_url(url: &String) -> Result<i32, CustomError> {
         true
     })?;
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use super::*;
+
+    #[test]
+    fn test_add_feed() {
+        let url = String::from("https://www.google.com");
+        assert!(add_feed_to_database(url).is_ok())
+    }
+
+    #[test]
+    fn test_get_feed_list() {
+        if open(Path::new("./database.sqlite")).is_ok() {
+            assert!(get_feed_list_database().is_ok())
+        } else {
+            assert!(get_feed_list_database().is_err())
+        }
+    }
+
+    #[test]
+    fn test_load_feeds_xml() {
+        let shows_directory = read_dir("./shows");
+        match shows_directory {
+            Ok(mut result) => {
+                let first = match result.nth(0) {
+                    Some(dir_entry) => match dir_entry {
+                        Ok(val) => Some(val.file_name()),
+                        Err(_) => None,
+                    },
+                    None => None,
+                };
+                // Check for OSX specific DS_Store file
+                if first != Some(OsString::from(".DS_Store")) && result.count() > 0 {
+                    assert!(load_feeds_xml().is_ok())
+                } else {
+                    assert!(load_feeds_xml().is_err())
+                }
+            }
+            Err(_) => assert!(load_feeds_xml().is_err()),
+        }
+    }
+
+    #[test]
+    fn test_check_episode_exists() {
+        if Path::new("./episodes").exists() {
+            assert!(check_episode_exists("foo").is_ok())
+        } else {
+            assert!(check_episode_exists("foo").is_err())
+        }
+    }
 }

@@ -126,6 +126,8 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
 mod tests {
     use std::fs::{copy, remove_file};
 
+    use crate::file_handling::feeds::get_feed_list_database;
+
     use super::*;
 
     #[test]
@@ -176,13 +178,6 @@ mod tests {
 
     #[test]
     fn test_get_episode_list() {
-        let result = get_episode_list_database();
-        match result {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{:?}", e);
-                assert!(false)
-            }
-        }
+        assert!(get_episode_list_database().is_ok())
     }
 }
