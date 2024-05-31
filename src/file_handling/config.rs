@@ -39,3 +39,23 @@ pub fn create_config(config: Option<CastironConfig>) -> Result<CastironConfig, C
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_config() {
+        let test_config_value = CastironConfig {
+            auto_dl_new: false,
+            auto_rm_after_listen: false,
+            dark_mode: false,
+        };
+        assert!(create_config(Some(test_config_value)).is_ok())
+    }
+
+    #[test]
+    fn test_read_config() {
+        assert!(read_config().is_ok())
+    }
+}
