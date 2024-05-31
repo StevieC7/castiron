@@ -130,14 +130,12 @@ mod tests {
 
     #[test]
     fn test_add_episode() {
-        // TODO: spin up temp database, make clone of existing and put it back in place when done
         if Path::new("./database.sqlite").exists() {
             let existing_db_file_path = Path::new("./database.sqlite");
             let new_db_file = Path::new("./temp_db.sqlite");
             let copy_result = copy(&existing_db_file_path, &new_db_file).is_ok();
             let delete_old_result = remove_file(&existing_db_file_path).is_ok();
-            // TODO: check for both of these to be true before proceeding with this branch
-            if let true = copy_result {
+            if let true = copy_result & delete_old_result {
                 assert!(add_episode_to_database(Episode {
                     date: String::from("2024/05/30"),
                     guid: String::from("jkdfjskluizuien1"),
