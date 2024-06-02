@@ -7,11 +7,12 @@ use crate::file_handling::feeds::add_feed_to_database;
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta, ui::AppView};
 
-use super::widgets::{Config, Episodes, Feed, Feeds};
+use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList};
 
 pub struct AppLayout {
     app_view: AppView,
-    feeds: Option<Feeds>,
+    feeds: Option<FeedList>,
+    episodes: Option<EpisodeList>,
     castiron_config: Option<Config>,
     feed_to_add: String,
 }
@@ -38,15 +39,16 @@ impl Application for AppLayout {
     fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
         (
             Self {
-                feeds: None,
                 app_view: AppView::Feeds,
+                feeds: None,
+                episodes: None,
                 castiron_config: None,
                 feed_to_add: String::new(),
             },
             Command::batch([
-                Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
                 Command::perform(Config::fetch_config(), Message::ConfigFound),
-                Command::perform(Episodes::fetch_episodes(), Message::EpisodesSynced),
+                Command::perform(FeedList::fetch_feeds(), Message::FeedsFound),
+                Command::perform(EpisodeList::fetch_episodes(), Message::EpisodesSynced),
             ]),
         )
     }
@@ -64,7 +66,7 @@ impl Application for AppLayout {
                         .iter()
                         .map(|n| Feed::new(n.feed_url.to_owned()))
                         .collect();
-                    self.feeds = Some(Feeds::new(feed_list));
+                    self.feeds = Some(FeedList::new(feed_list));
                     Command::none()
                 }
             },
@@ -73,8 +75,17 @@ impl Application for AppLayout {
                     println!("Episode sync failed: {:?}", e);
                     Command::none()
                 }
-                Ok(_) => {
-                    println!("Episodes synced");
+                Ok(data) => {
+                    match data {
+                        Some(found) => {
+                            let episode_list = found
+                                .iter()
+                                .map(|n| Episode::new(n.title.to_owned(), n.file_path.to_owned()))
+                                .collect();
+                            self.episodes = Some(EpisodeList::new(episode_list));
+                        }
+                        None => {}
+                    };
                     Command::none()
                 }
             },
@@ -108,7 +119,7 @@ impl Application for AppLayout {
                 let result = add_feed_to_database(self.feed_to_add.to_owned());
                 self.feed_to_add = String::new();
                 match result {
-                    Ok(_) => Command::perform(Feeds::fetch_feeds(), Message::FeedsFound),
+                    Ok(_) => Command::perform(FeedList::fetch_feeds(), Message::FeedsFound),
                     Err(_) => Command::none(),
                 }
             }
@@ -134,7 +145,10 @@ impl Application for AppLayout {
                 Some(feeds) => row![column, feeds.view()].into(),
                 None => row![column, text("No feeds to show.")].into(),
             },
-            AppView::Episodes => row![column, "Episodes go here."].into(),
+            AppView::Episodes => match self.episodes.as_ref() {
+                Some(episodes) => row![column, episodes.view()].into(),
+                None => row![column, text("No episodes to show.")].into(),
+            },
             AppView::Config => match self.castiron_config.as_ref() {
                 Some(config) => row![column, config.view()].into(),
                 None => row![column, text("No config to show.")].into(),
