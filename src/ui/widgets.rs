@@ -6,29 +6,29 @@ use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
 use super::gui::Message;
-use iced::widget::container::Appearance;
-use iced::widget::{container, row, text, Column, Toggler};
+use iced::widget::scrollable::Properties;
+use iced::widget::{column, container, row, text, Column, Scrollable, Toggler};
+use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{Border, Color, Element, Shadow};
 
 #[derive(Clone)]
-pub struct Feeds {
+pub struct FeedList {
     feeds: Vec<Feed>,
 }
 
-impl Feeds {
+impl FeedList {
     pub fn new(feeds: Vec<Feed>) -> Self {
         Self { feeds }
     }
     pub fn view(&self) -> Element<Message> {
-        let col = Column::new();
-        let feeds: Element<Message> = self
+        let scrollable = Scrollable::new(column![self
             .feeds
             .iter()
             .fold(Column::new().spacing(10), |col, content| {
                 col.push(content.view())
-            })
-            .into();
-        col.push(feeds).into()
+            })])
+        .direction(Direction::Vertical(Properties::default()));
+        scrollable.into()
     }
     pub async fn fetch_feeds() -> Result<Vec<FeedMeta>, String> {
         let result = get_feed_list_database();
@@ -120,11 +120,11 @@ impl Config {
 }
 
 #[derive(Clone)]
-pub struct Episodes {
+pub struct EpisodeList {
     episodes: Vec<Episode>,
 }
 
-impl Episodes {
+impl EpisodeList {
     pub fn new(episodes: Vec<Episode>) -> Self {
         Self { episodes }
     }
