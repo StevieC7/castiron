@@ -21,14 +21,14 @@ impl FeedList {
         Self { feeds }
     }
     pub fn view(&self) -> Element<Message> {
-        let scrollable = Scrollable::new(column![self
+        Scrollable::new(column![self
             .feeds
             .iter()
             .fold(Column::new().spacing(10), |col, content| {
                 col.push(content.view())
             })])
-        .direction(Direction::Vertical(Properties::default()));
-        scrollable.into()
+        .direction(Direction::Vertical(Properties::default()))
+        .into()
     }
     pub async fn fetch_feeds() -> Result<Vec<FeedMeta>, String> {
         let result = get_feed_list_database();
@@ -129,15 +129,14 @@ impl EpisodeList {
         Self { episodes }
     }
     pub fn view(&self) -> Element<Message> {
-        let col = Column::new();
-        let episodes: Element<Message> = self
+        Scrollable::new(column![self
             .episodes
             .iter()
             .fold(Column::new().spacing(10), |col, content| {
                 col.push(content.view())
-            })
-            .into();
-        col.push(episodes).into()
+            })])
+        .direction(Direction::Vertical(Properties::default()))
+        .into()
     }
     pub async fn fetch_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
         let result = sync_episode_list().await;
@@ -161,11 +160,8 @@ pub struct Episode {
 }
 
 impl Episode {
-    pub fn new(episode: EpisodeData) -> Self {
-        Self {
-            title: episode.title,
-            file_path: episode.file_path,
-        }
+    pub fn new(title: String, file_path: Option<String>) -> Self {
+        Self { title, file_path }
     }
     pub fn view(&self) -> Element<Message> {
         container(row!(text(self.title.to_owned())))
