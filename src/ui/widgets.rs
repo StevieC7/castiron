@@ -138,7 +138,7 @@ impl EpisodeList {
         .direction(Direction::Vertical(Properties::default()))
         .into()
     }
-    pub async fn fetch_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
+    pub async fn sync_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
         let result = sync_episode_list().await;
         match result {
             Ok(res) => match res {

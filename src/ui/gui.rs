@@ -20,6 +20,7 @@ pub struct AppLayout {
 #[derive(Debug, Clone)]
 pub enum Message {
     FeedsFound(Result<Vec<FeedMeta>, String>),
+    // Add EpisodesLoaded state for when no internet
     EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
     ConfigFound(Result<CastironConfig, String>),
     ViewEpisodes,
@@ -28,6 +29,7 @@ pub enum Message {
     SaveConfig(Option<CastironConfig>),
     AddFeed,
     FeedToAddUpdated(String),
+    // Add SyncEpisodes message that gets fresh list of episodes by downloading new XML files, parsing them, and storing the episode list in the database
 }
 
 impl Application for AppLayout {
@@ -48,7 +50,7 @@ impl Application for AppLayout {
             Command::batch([
                 Command::perform(Config::fetch_config(), Message::ConfigFound),
                 Command::perform(FeedList::fetch_feeds(), Message::FeedsFound),
-                Command::perform(EpisodeList::fetch_episodes(), Message::EpisodesSynced),
+                Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
             ]),
         )
     }
