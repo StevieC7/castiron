@@ -1,5 +1,6 @@
 use reqwest::get;
 use roxmltree::Document;
+use sqlite::Error;
 use std::{
     fs::File,
     io::{copy, Cursor},
@@ -8,7 +9,7 @@ use std::{
 
 use crate::{
     file_handling::{
-        episodes::{add_episode_to_database, get_episode_list_database},
+        episodes::{add_episode_to_database, get_episode_by_guid, get_episode_list_database},
         feeds::{check_episode_exists, get_feed_id_by_url, load_feeds_xml},
     },
     types::{episodes::Episode, errors::CustomError},
@@ -167,4 +168,18 @@ async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomEr
     let mut content = Cursor::new(response.bytes().await?);
     copy(&mut content, &mut directory)?;
     Ok(String::from("Download successful"))
+}
+
+pub async fn download_episode_by_guid(guid: String) -> Result<String, CustomError> {
+    let episode = get_episode_by_guid(guid)?;
+    match episode.file_path {
+        Some(path) => {
+            download_episode(episode.url.as_str(), path.as_str()).await?;
+            Ok(String::from("Download successful."))
+        }
+        None => Err(CustomError::SqlError(Error {
+            code: None,
+            message: Some(String::from("No file path existed for episode.")),
+        })),
+    }
 }

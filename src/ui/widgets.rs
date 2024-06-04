@@ -1,14 +1,14 @@
 use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::episodes::get_episode_list_database;
 use crate::file_handling::feeds::get_feed_list_database;
-use crate::networking::downloads::sync_episode_list;
+use crate::networking::downloads::{download_episode_by_guid, sync_episode_list};
 use crate::types::config::CastironConfig;
 use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
 use super::gui::Message;
 use iced::widget::scrollable::Properties;
-use iced::widget::{column, container, row, text, Column, Scrollable, Toggler};
+use iced::widget::{button, column, container, row, text, Column, Scrollable, Toggler};
 use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{Border, Color, Element, Shadow};
 
@@ -28,7 +28,10 @@ impl FeedList {
             .fold(Column::new().spacing(10), |col, content| {
                 col.push(content.view())
             })])
-        .direction(Direction::Vertical(Properties::default()))
+        .direction(Direction::Both {
+            vertical: Properties::default(),
+            horizontal: Properties::default(),
+        })
         .into()
     }
     pub async fn load_feeds() -> Result<Vec<FeedMeta>, String> {
@@ -162,34 +165,45 @@ impl EpisodeList {
 
 #[derive(Clone)]
 pub struct Episode {
+    guid: String,
     title: String,
 }
 
 impl Episode {
-    pub fn new(title: String) -> Self {
-        Self { title }
+    pub fn new(guid: String, title: String) -> Self {
+        Self { guid, title }
     }
     pub fn view(&self) -> Element<Message> {
-        container(row!(text(self.title.to_owned())))
-            .style(Appearance {
-                background: Some(iced::Background::Color(Color {
-                    r: 0.5,
-                    g: 0.5,
-                    b: 0.5,
-                    a: 1.0,
-                })),
-                text_color: None,
-                border: Border {
-                    color: Color::default(),
-                    width: 0.0,
-                    radius: [5.0, 5.0, 5.0, 5.0].into(),
-                },
-                shadow: Shadow::default(),
-            })
-            .max_width(500)
-            .center_x()
-            .center_y()
-            .padding(20)
-            .into()
+        container(row!(
+            text(self.title.to_owned()),
+            button(text("Click Me")).on_press(Message::DownloadEpisode(self.guid.to_owned()))
+        ))
+        .style(Appearance {
+            background: Some(iced::Background::Color(Color {
+                r: 0.5,
+                g: 0.5,
+                b: 0.5,
+                a: 1.0,
+            })),
+            text_color: None,
+            border: Border {
+                color: Color::default(),
+                width: 0.0,
+                radius: [5.0, 5.0, 5.0, 5.0].into(),
+            },
+            shadow: Shadow::default(),
+        })
+        .max_width(500)
+        .center_x()
+        .center_y()
+        .padding(20)
+        .into()
+    }
+
+    pub async fn download_single_episode(guid: String) -> Result<(), String> {
+        match download_episode_by_guid(guid).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(String::from(format!("Error downloading episode: {:?}", e))),
+        }
     }
 }
