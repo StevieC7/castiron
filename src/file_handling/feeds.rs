@@ -61,6 +61,9 @@ pub fn load_feeds_xml() -> Result<Vec<String>, IOError> {
         match feed {
             Ok(directory) => {
                 println!("{:?}", directory);
+                if let Some("./shows/.DS_Store") = directory.path().to_str() {
+                    continue;
+                }
                 let feed_content = read_to_string(directory.path())?;
                 feed_collection.push(feed_content);
             }

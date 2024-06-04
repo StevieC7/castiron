@@ -68,7 +68,6 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
         match played_kv_tuple {
             Some(wrapped_played) => match wrapped_played.1 {
                 Some(played) => {
-                    println!("played: {:?}", played);
                     result_tuple.played = match played.parse::<i8>() {
                         Ok(parsed) => match parsed {
                             0 => false,
