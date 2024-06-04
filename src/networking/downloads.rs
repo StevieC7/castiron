@@ -1,6 +1,5 @@
 use reqwest::get;
 use roxmltree::Document;
-use sqlite::Error;
 use std::{
     fs::File,
     io::{copy, Cursor},
@@ -58,16 +57,28 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
                             i_node.descendants().find(|n| n.has_tag_name("enclosure"));
                         match enclosure_node {
                             Some(e_node) => match e_node.attribute("url") {
-                                Some(url) => episodes.push(Episode {
-                                    guid: guid.to_string(),
-                                    file_path: None,
-                                    title: episode_title.to_string(),
-                                    date: episode_date.to_string(),
-                                    played: false,
-                                    played_seconds: 0,
-                                    feed_id,
-                                    url: url.to_string(),
-                                }),
+                                Some(url) => {
+                                    let file_name = match e_node.attribute("type") {
+                                        Some("audio/aac") => format!("{guid}.aac"),
+                                        Some("audio/mpeg") => format!("{guid}.mp3"),
+                                        Some("audio/ogg") => format!("{guid}.oga"),
+                                        Some("audio/opus") => format!("{guid}.opus"),
+                                        Some("audio/wav") => format!("{guid}.wav"),
+                                        Some("audio/webm") => format!("{guid}.weba"),
+                                        Some(_) => format!("{guid}.mp3"),
+                                        None => "fail.mp3".to_string(),
+                                    };
+                                    episodes.push(Episode {
+                                        guid: guid.to_string(),
+                                        file_name,
+                                        title: episode_title.to_string(),
+                                        date: episode_date.to_string(),
+                                        played: false,
+                                        played_seconds: 0,
+                                        feed_id,
+                                        url: url.to_string(),
+                                    })
+                                }
                                 None => {
                                     println!("No url found for {:?}.", g_node.text())
                                 }
@@ -162,7 +173,7 @@ pub async fn download_episodes() -> Result<(), CustomError> {
 }
 
 async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomError> {
-    println!("Downloading: {:?} /n from {:?}", file_name, url);
+    println!("Downloading: {:?} from {:?}", file_name, url);
     let mut directory = File::create(Path::new(format!("./episodes/{file_name}").as_str()))?;
     let response = get(url).await?;
     let mut content = Cursor::new(response.bytes().await?);
@@ -172,14 +183,7 @@ async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomEr
 
 pub async fn download_episode_by_guid(guid: String) -> Result<String, CustomError> {
     let episode = get_episode_by_guid(guid)?;
-    match episode.file_path {
-        Some(path) => {
-            download_episode(episode.url.as_str(), path.as_str()).await?;
-            Ok(String::from("Download successful."))
-        }
-        None => Err(CustomError::SqlError(Error {
-            code: None,
-            message: Some(String::from("No file path existed for episode.")),
-        })),
-    }
+    println!("DEBUG: retrieved {:?}", episode);
+    download_episode(episode.url.as_str(), episode.file_name.as_str()).await?;
+    Ok(String::from("Download successful."))
 }

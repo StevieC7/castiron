@@ -7,19 +7,15 @@ pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
         guid,
         title,
         date,
-        file_path,
+        file_name,
         url,
         feed_id,
         ..
     } = episode;
-    let existing_file_path = match file_path {
-        Some(val) => String::from(format!("'{val}'")),
-        None => String::from("NULL"),
-    };
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("
-        CREATE TABLE IF NOT EXISTS episodes(guid TEXT PRIMARY KEY, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_path TEXT, url TEXT, feed_id INTEGER);
-        INSERT INTO episodes (guid, title, date, played, file_path, url, feed_id) VALUES ('{guid}', '{title}', '{date}', FALSE, {existing_file_path}, '{url}', '{feed_id}')
+        CREATE TABLE IF NOT EXISTS episodes(guid TEXT PRIMARY KEY, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_name TEXT, url TEXT, feed_id INTEGER);
+        INSERT INTO episodes (guid, title, date, played, file_name, url, feed_id) VALUES ('{guid}', '{title}', '{date}', FALSE, '{file_name}', '{url}', '{feed_id}')
             ON CONFLICT (guid) DO NOTHING;
     ");
     connection.execute(query)?;
@@ -37,7 +33,7 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
             date: String::new(),
             played: false,
             played_seconds: 0,
-            file_path: None,
+            file_name: String::new(),
             url: String::new(),
             feed_id: 0,
         };
@@ -95,7 +91,7 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
         let file_path_kv_tuple = n.iter().find(|val| val.0 == "file_path");
         match file_path_kv_tuple {
             Some(wrapped_file_path) => match wrapped_file_path.1 {
-                Some(file_path) => result_tuple.file_path = Some(file_path.to_string()),
+                Some(file_path) => result_tuple.file_name = file_path.to_string(),
                 None => (),
             },
             None => (),
@@ -133,7 +129,7 @@ pub fn get_episode_by_guid(guid: String) -> Result<Episode, CustomError> {
             date: String::new(),
             played: false,
             played_seconds: 0,
-            file_path: None,
+            file_name: String::new(),
             url: String::new(),
             feed_id: 0,
         };
@@ -188,10 +184,10 @@ pub fn get_episode_by_guid(guid: String) -> Result<Episode, CustomError> {
             },
             None => (),
         }
-        let file_path_kv_tuple = n.iter().find(|val| val.0 == "file_path");
+        let file_path_kv_tuple = n.iter().find(|val| val.0 == "file_name");
         match file_path_kv_tuple {
             Some(wrapped_file_path) => match wrapped_file_path.1 {
-                Some(file_path) => result_tuple.file_path = Some(file_path.to_string()),
+                Some(file_path) => result_tuple.file_name = file_path.to_string(),
                 None => (),
             },
             None => (),
@@ -245,7 +241,7 @@ mod tests {
                     url: String::from("https://www.google.com"),
                     feed_id: 998,
                     played_seconds: 0,
-                    file_path: None,
+                    file_name: String::from("pod.mp3"),
                     played: false,
                 })
                 .is_ok());
@@ -269,7 +265,7 @@ mod tests {
                 url: String::from("https://www.google.com"),
                 feed_id: 999,
                 played_seconds: 0,
-                file_path: None,
+                file_name: String::from("pod.mp3"),
                 played: false,
             })
             .is_ok())
