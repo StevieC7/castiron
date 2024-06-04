@@ -32,6 +32,7 @@ pub enum Message {
     SyncEpisodes,
     DownloadEpisode(String),
     EpisodeDownloaded(Result<(), String>),
+    PlayEpisode,
 }
 
 impl Application for AppLayout {
@@ -86,7 +87,13 @@ impl Application for AppLayout {
                         Some(found) => {
                             let episode_list = found
                                 .iter()
-                                .map(|n| Episode::new(n.guid.to_owned(), n.title.to_owned()))
+                                .map(|n| {
+                                    Episode::new(
+                                        n.guid.to_owned(),
+                                        n.title.to_owned(),
+                                        n.file_name.to_owned(),
+                                    )
+                                })
                                 .collect();
                             self.episodes = Some(EpisodeList::new(episode_list));
                         }
@@ -105,7 +112,13 @@ impl Application for AppLayout {
                         Some(found) => {
                             let episode_list = found
                                 .iter()
-                                .map(|n| Episode::new(n.guid.to_owned(), n.title.to_owned()))
+                                .map(|n| {
+                                    Episode::new(
+                                        n.guid.to_owned(),
+                                        n.title.to_owned(),
+                                        n.file_name.to_owned(),
+                                    )
+                                })
                                 .collect();
                             self.episodes = Some(EpisodeList::new(episode_list));
                         }
@@ -166,6 +179,7 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
+            Message::PlayEpisode => Command::none(),
         }
     }
 
