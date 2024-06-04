@@ -54,7 +54,7 @@ impl Application for AppLayout {
     }
 
     fn title(&self) -> String {
-        String::from("Counter - Iced")
+        String::from("Castiron")
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
