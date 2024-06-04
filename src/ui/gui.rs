@@ -19,7 +19,7 @@ pub struct AppLayout {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    FeedsFound(Result<Vec<FeedMeta>, String>),
+    FeedsLoaded(Result<Vec<FeedMeta>, String>),
     // Add EpisodesLoaded state for when no internet
     EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
     ConfigFound(Result<CastironConfig, String>),
@@ -49,7 +49,7 @@ impl Application for AppLayout {
             },
             Command::batch([
                 Command::perform(Config::fetch_config(), Message::ConfigFound),
-                Command::perform(FeedList::fetch_feeds(), Message::FeedsFound),
+                Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
                 Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
             ]),
         )
@@ -61,7 +61,7 @@ impl Application for AppLayout {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::FeedsFound(feeds) => match feeds {
+            Message::FeedsLoaded(feeds) => match feeds {
                 Err(_) => Command::none(),
                 Ok(data) => {
                     let feed_list = data
@@ -121,7 +121,7 @@ impl Application for AppLayout {
                 let result = add_feed_to_database(self.feed_to_add.to_owned());
                 self.feed_to_add = String::new();
                 match result {
-                    Ok(_) => Command::perform(FeedList::fetch_feeds(), Message::FeedsFound),
+                    Ok(_) => Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
                     Err(_) => Command::none(),
                 }
             }

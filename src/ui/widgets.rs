@@ -30,7 +30,7 @@ impl FeedList {
         .direction(Direction::Vertical(Properties::default()))
         .into()
     }
-    pub async fn fetch_feeds() -> Result<Vec<FeedMeta>, String> {
+    pub async fn load_feeds() -> Result<Vec<FeedMeta>, String> {
         let result = get_feed_list_database();
         match result {
             Ok(res) => Ok(res),
