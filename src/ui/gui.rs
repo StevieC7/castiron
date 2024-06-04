@@ -22,7 +22,7 @@ pub enum Message {
     FeedsLoaded(Result<Vec<FeedMeta>, String>),
     // Add EpisodesLoaded state for when no internet
     EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
-    ConfigFound(Result<CastironConfig, String>),
+    ConfigLoaded(Result<CastironConfig, String>),
     ViewEpisodes,
     ViewFeeds,
     ViewConfig,
@@ -48,7 +48,7 @@ impl Application for AppLayout {
                 feed_to_add: String::new(),
             },
             Command::batch([
-                Command::perform(Config::fetch_config(), Message::ConfigFound),
+                Command::perform(Config::load_config(), Message::ConfigLoaded),
                 Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
                 Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
             ]),
@@ -91,7 +91,7 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
-            Message::ConfigFound(config) => match config {
+            Message::ConfigLoaded(config) => match config {
                 Err(_) => Command::none(),
                 Ok(data) => {
                     self.castiron_config = Some(Config::new(data));
@@ -113,7 +113,7 @@ impl Application for AppLayout {
             Message::SaveConfig(config) => {
                 let update_config_result = create_config(config);
                 match update_config_result {
-                    Ok(_) => Command::perform(Config::fetch_config(), Message::ConfigFound),
+                    Ok(_) => Command::perform(Config::load_config(), Message::ConfigLoaded),
                     Err(_) => Command::none(),
                 }
             }

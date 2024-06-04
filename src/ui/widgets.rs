@@ -104,7 +104,7 @@ impl Config {
             .into()
     }
 
-    pub async fn fetch_config() -> Result<CastironConfig, String> {
+    pub async fn load_config() -> Result<CastironConfig, String> {
         let result = read_config();
         match result {
             Ok(conf) => Ok(conf),
