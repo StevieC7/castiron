@@ -156,12 +156,11 @@ impl EpisodeList {
 #[derive(Clone)]
 pub struct Episode {
     title: String,
-    file_path: Option<String>,
 }
 
 impl Episode {
-    pub fn new(title: String, file_path: Option<String>) -> Self {
-        Self { title, file_path }
+    pub fn new(title: String) -> Self {
+        Self { title }
     }
     pub fn view(&self) -> Element<Message> {
         container(row!(text(self.title.to_owned())))

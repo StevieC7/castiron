@@ -80,7 +80,7 @@ impl Application for AppLayout {
                         Some(found) => {
                             let episode_list = found
                                 .iter()
-                                .map(|n| Episode::new(n.title.to_owned(), n.file_path.to_owned()))
+                                .map(|n| Episode::new(n.title.to_owned()))
                                 .collect();
                             self.episodes = Some(EpisodeList::new(episode_list));
                         }
