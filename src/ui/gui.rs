@@ -21,6 +21,7 @@ pub struct AppLayout {
 pub enum Message {
     FeedsLoaded(Result<Vec<FeedMeta>, String>),
     // Add EpisodesLoaded state for when no internet
+    EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
     EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
     ConfigLoaded(Result<CastironConfig, String>),
     ViewEpisodes,
@@ -30,6 +31,7 @@ pub enum Message {
     AddFeed,
     FeedToAddUpdated(String),
     // Add SyncEpisodes message that gets fresh list of episodes by downloading new XML files, parsing them, and storing the episode list in the database
+    SyncEpisodes,
 }
 
 impl Application for AppLayout {
@@ -50,7 +52,9 @@ impl Application for AppLayout {
             Command::batch([
                 Command::perform(Config::load_config(), Message::ConfigLoaded),
                 Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
-                Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
+                Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
+                // TODO: find out how to defer this action until after episode list rendered, and only when config specifies auto download new
+                // Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
             ]),
         )
     }
@@ -69,6 +73,25 @@ impl Application for AppLayout {
                         .map(|n| Feed::new(n.feed_url.to_owned()))
                         .collect();
                     self.feeds = Some(FeedList::new(feed_list));
+                    Command::none()
+                }
+            },
+            Message::EpisodesLoaded(episodes) => match episodes {
+                Err(e) => {
+                    println!("Episode loading failed: {:?}", e);
+                    Command::none()
+                }
+                Ok(data) => {
+                    match data {
+                        Some(found) => {
+                            let episode_list = found
+                                .iter()
+                                .map(|n| Episode::new(n.title.to_owned()))
+                                .collect();
+                            self.episodes = Some(EpisodeList::new(episode_list));
+                        }
+                        None => {}
+                    };
                     Command::none()
                 }
             },
@@ -129,6 +152,9 @@ impl Application for AppLayout {
                 self.feed_to_add = val;
                 Command::none()
             }
+            Message::SyncEpisodes => {
+                Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced)
+            }
         }
     }
 
@@ -139,6 +165,7 @@ impl Application for AppLayout {
             button(text("Config")).on_press(Message::ViewConfig),
             text_input("add feed", self.feed_to_add.as_str()).on_input(Message::FeedToAddUpdated),
             button(text("Add")).on_press(Message::AddFeed),
+            button(text("Sync")).on_press(Message::SyncEpisodes)
         ]
         .padding(20)
         .align_items(Alignment::Center);

@@ -1,4 +1,5 @@
 use crate::file_handling::config::{create_config, read_config};
+use crate::file_handling::episodes::get_episode_list_database;
 use crate::file_handling::feeds::get_feed_list_database;
 use crate::networking::downloads::sync_episode_list;
 use crate::types::config::CastironConfig;
@@ -138,6 +139,15 @@ impl EpisodeList {
         .direction(Direction::Vertical(Properties::default()))
         .into()
     }
+    pub async fn load_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
+        match get_episode_list_database() {
+            Ok(data) => Ok(Some(data)),
+            Err(e) => Err(String::from(format!(
+                "Error fetching episodes from database: {:?}",
+                e
+            ))),
+        }
+    }
     pub async fn sync_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
         let result = sync_episode_list().await;
         match result {
@@ -145,10 +155,7 @@ impl EpisodeList {
                 Some(val) => Ok(Some(val)),
                 None => Ok(None),
             },
-            Err(e) => Err(String::from(format!(
-                "Error fetching episodes from database: {:?}",
-                e
-            ))),
+            Err(e) => Err(String::from(format!("Error syncing episodes: {:?}", e))),
         }
     }
 }
