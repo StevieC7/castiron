@@ -5,7 +5,7 @@ pub struct Episode {
     pub date: String,
     pub played: bool,
     pub played_seconds: i32,
-    pub file_path: Option<String>,
+    pub file_name: String,
     pub url: String,
     pub feed_id: i32,
 }

@@ -20,7 +20,6 @@ pub struct AppLayout {
 #[derive(Debug, Clone)]
 pub enum Message {
     FeedsLoaded(Result<Vec<FeedMeta>, String>),
-    // Add EpisodesLoaded state for when no internet
     EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
     EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
     ConfigLoaded(Result<CastironConfig, String>),
@@ -30,8 +29,10 @@ pub enum Message {
     SaveConfig(Option<CastironConfig>),
     AddFeed,
     FeedToAddUpdated(String),
-    // Add SyncEpisodes message that gets fresh list of episodes by downloading new XML files, parsing them, and storing the episode list in the database
     SyncEpisodes,
+    DownloadEpisode(String),
+    EpisodeDownloaded(Result<(), String>),
+    PlayEpisode,
 }
 
 impl Application for AppLayout {
@@ -86,7 +87,13 @@ impl Application for AppLayout {
                         Some(found) => {
                             let episode_list = found
                                 .iter()
-                                .map(|n| Episode::new(n.title.to_owned()))
+                                .map(|n| {
+                                    Episode::new(
+                                        n.guid.to_owned(),
+                                        n.title.to_owned(),
+                                        n.file_name.to_owned(),
+                                    )
+                                })
                                 .collect();
                             self.episodes = Some(EpisodeList::new(episode_list));
                         }
@@ -105,7 +112,13 @@ impl Application for AppLayout {
                         Some(found) => {
                             let episode_list = found
                                 .iter()
-                                .map(|n| Episode::new(n.title.to_owned()))
+                                .map(|n| {
+                                    Episode::new(
+                                        n.guid.to_owned(),
+                                        n.title.to_owned(),
+                                        n.file_name.to_owned(),
+                                    )
+                                })
                                 .collect();
                             self.episodes = Some(EpisodeList::new(episode_list));
                         }
@@ -155,6 +168,18 @@ impl Application for AppLayout {
             Message::SyncEpisodes => {
                 Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced)
             }
+            Message::DownloadEpisode(guid) => Command::perform(
+                Episode::download_single_episode(guid),
+                Message::EpisodeDownloaded,
+            ),
+            Message::EpisodeDownloaded(result) => match result {
+                Ok(_) => Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
+                Err(e) => {
+                    println!("Error downloading episode: {e}");
+                    Command::none()
+                }
+            },
+            Message::PlayEpisode => Command::none(),
         }
     }
 

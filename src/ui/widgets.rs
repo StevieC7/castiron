@@ -1,16 +1,18 @@
+use std::path::Path;
+
 use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::episodes::get_episode_list_database;
 use crate::file_handling::feeds::get_feed_list_database;
-use crate::networking::downloads::sync_episode_list;
+use crate::networking::downloads::{download_episode_by_guid, sync_episode_list};
 use crate::types::config::CastironConfig;
 use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
 use super::gui::Message;
 use iced::widget::scrollable::Properties;
-use iced::widget::{column, container, row, text, Column, Scrollable, Toggler};
+use iced::widget::{button, column, container, row, text, Button, Column, Scrollable, Toggler};
 use iced::widget::{container::Appearance, scrollable::Direction};
-use iced::{Border, Color, Element, Shadow};
+use iced::{Border, Color, Element, Renderer, Shadow, Theme};
 
 #[derive(Clone)]
 pub struct FeedList {
@@ -28,7 +30,10 @@ impl FeedList {
             .fold(Column::new().spacing(10), |col, content| {
                 col.push(content.view())
             })])
-        .direction(Direction::Vertical(Properties::default()))
+        .direction(Direction::Both {
+            vertical: Properties::default(),
+            horizontal: Properties::default(),
+        })
         .into()
     }
     pub async fn load_feeds() -> Result<Vec<FeedMeta>, String> {
@@ -162,15 +167,27 @@ impl EpisodeList {
 
 #[derive(Clone)]
 pub struct Episode {
+    guid: String,
     title: String,
+    file_name: String,
 }
 
 impl Episode {
-    pub fn new(title: String) -> Self {
-        Self { title }
+    pub fn new(guid: String, title: String, file_name: String) -> Self {
+        Self {
+            guid,
+            title,
+            file_name,
+        }
     }
     pub fn view(&self) -> Element<Message> {
-        container(row!(text(self.title.to_owned())))
+        let action_button: Button<Message, Theme, Renderer> =
+            match Path::new(format!("./episodes/{}", self.file_name).as_str()).exists() {
+                true => button(text("Play")).on_press(Message::PlayEpisode),
+                false => button(text("Download"))
+                    .on_press(Message::DownloadEpisode(self.guid.to_owned())),
+            };
+        container(row!(text(self.title.to_owned()), action_button))
             .style(Appearance {
                 background: Some(iced::Background::Color(Color {
                     r: 0.5,
@@ -191,5 +208,12 @@ impl Episode {
             .center_y()
             .padding(20)
             .into()
+    }
+
+    pub async fn download_single_episode(guid: String) -> Result<(), String> {
+        match download_episode_by_guid(guid).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(String::from(format!("Error downloading episode: {:?}", e))),
+        }
     }
 }
