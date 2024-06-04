@@ -1,4 +1,5 @@
 use crate::file_handling::config::{create_config, read_config};
+use crate::file_handling::episodes::get_episode_list_database;
 use crate::file_handling::feeds::get_feed_list_database;
 use crate::networking::downloads::sync_episode_list;
 use crate::types::config::CastironConfig;
@@ -30,7 +31,7 @@ impl FeedList {
         .direction(Direction::Vertical(Properties::default()))
         .into()
     }
-    pub async fn fetch_feeds() -> Result<Vec<FeedMeta>, String> {
+    pub async fn load_feeds() -> Result<Vec<FeedMeta>, String> {
         let result = get_feed_list_database();
         match result {
             Ok(res) => Ok(res),
@@ -104,7 +105,7 @@ impl Config {
             .into()
     }
 
-    pub async fn fetch_config() -> Result<CastironConfig, String> {
+    pub async fn load_config() -> Result<CastironConfig, String> {
         let result = read_config();
         match result {
             Ok(conf) => Ok(conf),
@@ -138,17 +139,23 @@ impl EpisodeList {
         .direction(Direction::Vertical(Properties::default()))
         .into()
     }
-    pub async fn fetch_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
+    pub async fn load_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
+        match get_episode_list_database() {
+            Ok(data) => Ok(Some(data)),
+            Err(e) => Err(String::from(format!(
+                "Error fetching episodes from database: {:?}",
+                e
+            ))),
+        }
+    }
+    pub async fn sync_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
         let result = sync_episode_list().await;
         match result {
             Ok(res) => match res {
                 Some(val) => Ok(Some(val)),
                 None => Ok(None),
             },
-            Err(e) => Err(String::from(format!(
-                "Error fetching episodes from database: {:?}",
-                e
-            ))),
+            Err(e) => Err(String::from(format!("Error syncing episodes: {:?}", e))),
         }
     }
 }
@@ -156,12 +163,11 @@ impl EpisodeList {
 #[derive(Clone)]
 pub struct Episode {
     title: String,
-    file_path: Option<String>,
 }
 
 impl Episode {
-    pub fn new(title: String, file_path: Option<String>) -> Self {
-        Self { title, file_path }
+    pub fn new(title: String) -> Self {
+        Self { title }
     }
     pub fn view(&self) -> Element<Message> {
         container(row!(text(self.title.to_owned())))

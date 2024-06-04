@@ -19,7 +19,8 @@ pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("
         CREATE TABLE IF NOT EXISTS episodes(guid TEXT PRIMARY KEY, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_path TEXT, url TEXT, feed_id INTEGER);
-        INSERT INTO episodes (guid, title, date, played, file_path, url, feed_id) VALUES ('{guid}', '{title}', '{date}', FALSE, {existing_file_path}, '{url}', '{feed_id}');
+        INSERT INTO episodes (guid, title, date, played, file_path, url, feed_id) VALUES ('{guid}', '{title}', '{date}', FALSE, {existing_file_path}, '{url}', '{feed_id}')
+            ON CONFLICT (guid) DO NOTHING;
     ");
     connection.execute(query)?;
     Ok(())
@@ -68,7 +69,6 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
         match played_kv_tuple {
             Some(wrapped_played) => match wrapped_played.1 {
                 Some(played) => {
-                    println!("played: {:?}", played);
                     result_tuple.played = match played.parse::<i8>() {
                         Ok(parsed) => match parsed {
                             0 => false,

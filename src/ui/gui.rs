@@ -19,15 +19,19 @@ pub struct AppLayout {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    FeedsFound(Result<Vec<FeedMeta>, String>),
+    FeedsLoaded(Result<Vec<FeedMeta>, String>),
+    // Add EpisodesLoaded state for when no internet
+    EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
     EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
-    ConfigFound(Result<CastironConfig, String>),
+    ConfigLoaded(Result<CastironConfig, String>),
     ViewEpisodes,
     ViewFeeds,
     ViewConfig,
     SaveConfig(Option<CastironConfig>),
     AddFeed,
     FeedToAddUpdated(String),
+    // Add SyncEpisodes message that gets fresh list of episodes by downloading new XML files, parsing them, and storing the episode list in the database
+    SyncEpisodes,
 }
 
 impl Application for AppLayout {
@@ -46,20 +50,22 @@ impl Application for AppLayout {
                 feed_to_add: String::new(),
             },
             Command::batch([
-                Command::perform(Config::fetch_config(), Message::ConfigFound),
-                Command::perform(FeedList::fetch_feeds(), Message::FeedsFound),
-                Command::perform(EpisodeList::fetch_episodes(), Message::EpisodesSynced),
+                Command::perform(Config::load_config(), Message::ConfigLoaded),
+                Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+                Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
+                // TODO: find out how to defer this action until after episode list rendered, and only when config specifies auto download new
+                // Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
             ]),
         )
     }
 
     fn title(&self) -> String {
-        String::from("Counter - Iced")
+        String::from("Castiron")
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::FeedsFound(feeds) => match feeds {
+            Message::FeedsLoaded(feeds) => match feeds {
                 Err(_) => Command::none(),
                 Ok(data) => {
                     let feed_list = data
@@ -67,6 +73,25 @@ impl Application for AppLayout {
                         .map(|n| Feed::new(n.feed_url.to_owned()))
                         .collect();
                     self.feeds = Some(FeedList::new(feed_list));
+                    Command::none()
+                }
+            },
+            Message::EpisodesLoaded(episodes) => match episodes {
+                Err(e) => {
+                    println!("Episode loading failed: {:?}", e);
+                    Command::none()
+                }
+                Ok(data) => {
+                    match data {
+                        Some(found) => {
+                            let episode_list = found
+                                .iter()
+                                .map(|n| Episode::new(n.title.to_owned()))
+                                .collect();
+                            self.episodes = Some(EpisodeList::new(episode_list));
+                        }
+                        None => {}
+                    };
                     Command::none()
                 }
             },
@@ -80,7 +105,7 @@ impl Application for AppLayout {
                         Some(found) => {
                             let episode_list = found
                                 .iter()
-                                .map(|n| Episode::new(n.title.to_owned(), n.file_path.to_owned()))
+                                .map(|n| Episode::new(n.title.to_owned()))
                                 .collect();
                             self.episodes = Some(EpisodeList::new(episode_list));
                         }
@@ -89,7 +114,7 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
-            Message::ConfigFound(config) => match config {
+            Message::ConfigLoaded(config) => match config {
                 Err(_) => Command::none(),
                 Ok(data) => {
                     self.castiron_config = Some(Config::new(data));
@@ -111,7 +136,7 @@ impl Application for AppLayout {
             Message::SaveConfig(config) => {
                 let update_config_result = create_config(config);
                 match update_config_result {
-                    Ok(_) => Command::perform(Config::fetch_config(), Message::ConfigFound),
+                    Ok(_) => Command::perform(Config::load_config(), Message::ConfigLoaded),
                     Err(_) => Command::none(),
                 }
             }
@@ -119,13 +144,16 @@ impl Application for AppLayout {
                 let result = add_feed_to_database(self.feed_to_add.to_owned());
                 self.feed_to_add = String::new();
                 match result {
-                    Ok(_) => Command::perform(FeedList::fetch_feeds(), Message::FeedsFound),
+                    Ok(_) => Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
                     Err(_) => Command::none(),
                 }
             }
             Message::FeedToAddUpdated(val) => {
                 self.feed_to_add = val;
                 Command::none()
+            }
+            Message::SyncEpisodes => {
+                Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced)
             }
         }
     }
@@ -137,6 +165,7 @@ impl Application for AppLayout {
             button(text("Config")).on_press(Message::ViewConfig),
             text_input("add feed", self.feed_to_add.as_str()).on_input(Message::FeedToAddUpdated),
             button(text("Add")).on_press(Message::AddFeed),
+            button(text("Sync")).on_press(Message::SyncEpisodes)
         ]
         .padding(20)
         .align_items(Alignment::Center);
