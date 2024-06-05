@@ -12,10 +12,12 @@ pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
         feed_id,
         ..
     } = episode;
+    let mut sanitized_title = title.replace("'", "''");
+    sanitized_title = sanitized_title.replace("\"", "\"\"");
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("
         CREATE TABLE IF NOT EXISTS episodes(guid TEXT PRIMARY KEY, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_name TEXT, url TEXT, feed_id INTEGER);
-        INSERT INTO episodes (guid, title, date, played, file_name, url, feed_id) VALUES ('{guid}', '{title}', '{date}', FALSE, '{file_name}', '{url}', '{feed_id}')
+        INSERT INTO episodes (guid, title, date, played, file_name, url, feed_id) VALUES ('{guid}', '{sanitized_title}', '{date}', FALSE, '{file_name}', '{url}', '{feed_id}')
             ON CONFLICT (guid) DO NOTHING;
     ");
     connection.execute(query)?;
