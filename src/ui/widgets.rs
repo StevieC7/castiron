@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::episodes::get_episode_list_database;
 use crate::file_handling::feeds::get_feed_list_database;
@@ -169,24 +167,24 @@ impl EpisodeList {
 pub struct Episode {
     guid: String,
     title: String,
-    file_name: String,
+    downloaded: bool,
 }
 
 impl Episode {
-    pub fn new(guid: String, title: String, file_name: String) -> Self {
+    pub fn new(guid: String, title: String, downloaded: bool) -> Self {
         Self {
             guid,
             title,
-            file_name,
+            downloaded,
         }
     }
     pub fn view(&self) -> Element<Message> {
-        let action_button: Button<Message, Theme, Renderer> =
-            match Path::new(format!("./episodes/{}", self.file_name).as_str()).exists() {
-                true => button(text("Play")).on_press(Message::PlayEpisode),
-                false => button(text("Download"))
-                    .on_press(Message::DownloadEpisode(self.guid.to_owned())),
-            };
+        let action_button: Button<Message, Theme, Renderer> = match self.downloaded {
+            true => button(text("Play")).on_press(Message::PlayEpisode),
+            false => {
+                button(text("Download")).on_press(Message::DownloadEpisode(self.guid.to_owned()))
+            }
+        };
         container(row!(text(self.title.to_owned()), action_button))
             .style(Appearance {
                 background: Some(iced::Background::Color(Color {

@@ -91,7 +91,7 @@ impl Application for AppLayout {
                                     Episode::new(
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
-                                        n.file_name.to_owned(),
+                                        n.downloaded,
                                     )
                                 })
                                 .collect();
@@ -116,7 +116,7 @@ impl Application for AppLayout {
                                     Episode::new(
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
-                                        n.file_name.to_owned(),
+                                        n.downloaded,
                                     )
                                 })
                                 .collect();

@@ -8,7 +8,10 @@ use std::{
 
 use crate::{
     file_handling::{
-        episodes::{add_episode_to_database, get_episode_by_guid, get_episode_list_database},
+        episodes::{
+            add_episode_to_database, get_episode_by_guid, get_episode_list_database,
+            update_episode_download_status,
+        },
         feeds::{check_episode_exists, get_feed_id_by_url, load_feeds_xml},
     },
     types::{episodes::Episode, errors::CustomError},
@@ -75,6 +78,7 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
                                     played_seconds: 0,
                                     feed_id,
                                     url: url.to_string(),
+                                    downloaded: false,
                                 })
                             }
                             None => {
@@ -142,7 +146,11 @@ pub async fn download_episodes() -> Result<(), CustomError> {
                                                 let download_result =
                                                     download_episode(url, file_name.as_str()).await;
                                                 match download_result {
-                                                    Ok(_result) => (),
+                                                    Ok(_) => {
+                                                        update_episode_download_status(
+                                                            guid.to_string(),
+                                                        )?;
+                                                    }
                                                     Err(e) => println!("Download function {:?}", e),
                                                 }
                                             }
