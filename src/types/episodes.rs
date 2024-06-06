@@ -8,4 +8,5 @@ pub struct Episode {
     pub file_name: String,
     pub url: String,
     pub feed_id: i32,
+    pub downloaded: bool,
 }
