@@ -7,7 +7,7 @@ use crate::file_handling::feeds::add_feed_to_database;
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta, ui::AppView};
 
-use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList};
+use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
 
 pub struct AppLayout {
     app_view: AppView,
@@ -15,6 +15,7 @@ pub struct AppLayout {
     episodes: Option<EpisodeList>,
     castiron_config: Option<Config>,
     feed_to_add: String,
+    player: Player,
 }
 
 #[derive(Debug, Clone)]
@@ -32,7 +33,9 @@ pub enum Message {
     SyncEpisodes,
     DownloadEpisode(String),
     EpisodeDownloaded(Result<(), String>),
-    PlayEpisode,
+    PlayEpisode(String),
+    PlayerPlay,
+    PlayerPlaying,
 }
 
 impl Application for AppLayout {
@@ -49,6 +52,7 @@ impl Application for AppLayout {
                 episodes: None,
                 castiron_config: None,
                 feed_to_add: String::new(),
+                player: Player::new(None),
             },
             Command::batch([
                 Command::perform(Config::load_config(), Message::ConfigLoaded),
@@ -91,6 +95,7 @@ impl Application for AppLayout {
                                     Episode::new(
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
+                                        n.file_name.to_owned(),
                                         n.downloaded,
                                     )
                                 })
@@ -116,6 +121,7 @@ impl Application for AppLayout {
                                     Episode::new(
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
+                                        n.file_name.to_owned(),
                                         n.downloaded,
                                     )
                                 })
@@ -179,7 +185,15 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
-            Message::PlayEpisode => Command::none(),
+            Message::PlayEpisode(file_name) => {
+                self.player = Player::new(Some(file_name));
+                Command::none()
+            }
+            Message::PlayerPlay => {
+                self.player.update(PlayerMessage::Play);
+                Command::none()
+            }
+            Message::PlayerPlaying => Command::none(),
         }
     }
 
@@ -190,7 +204,8 @@ impl Application for AppLayout {
             button(text("Config")).on_press(Message::ViewConfig),
             text_input("add feed", self.feed_to_add.as_str()).on_input(Message::FeedToAddUpdated),
             button(text("Add")).on_press(Message::AddFeed),
-            button(text("Sync")).on_press(Message::SyncEpisodes)
+            button(text("Sync")).on_press(Message::SyncEpisodes),
+            self.player.view()
         ]
         .padding(20)
         .align_items(Alignment::Center);

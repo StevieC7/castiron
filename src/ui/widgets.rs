@@ -1,3 +1,7 @@
+use rodio::Decoder;
+use std::fs::File;
+use std::io::BufReader;
+
 use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::episodes::get_episode_list_database;
 use crate::file_handling::feeds::get_feed_list_database;
@@ -11,6 +15,7 @@ use iced::widget::scrollable::Properties;
 use iced::widget::{button, column, container, row, text, Button, Column, Scrollable, Toggler};
 use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{Border, Color, Element, Renderer, Shadow, Theme};
+use rodio::{OutputStream, Sink};
 
 #[derive(Clone)]
 pub struct FeedList {
@@ -167,20 +172,22 @@ impl EpisodeList {
 pub struct Episode {
     guid: String,
     title: String,
+    file_name: String,
     downloaded: bool,
 }
 
 impl Episode {
-    pub fn new(guid: String, title: String, downloaded: bool) -> Self {
+    pub fn new(guid: String, title: String, file_name: String, downloaded: bool) -> Self {
         Self {
             guid,
             title,
+            file_name,
             downloaded,
         }
     }
     pub fn view(&self) -> Element<Message> {
         let action_button: Button<Message, Theme, Renderer> = match self.downloaded {
-            true => button(text("Play")).on_press(Message::PlayEpisode),
+            true => button(text("Play")).on_press(Message::PlayEpisode(self.file_name.to_owned())),
             false => {
                 button(text("Download")).on_press(Message::DownloadEpisode(self.guid.to_owned()))
             }
@@ -213,5 +220,88 @@ impl Episode {
             Ok(_) => Ok(()),
             Err(e) => Err(String::from(format!("Error downloading episode: {:?}", e))),
         }
+    }
+}
+
+pub struct Player {
+    file_name: Option<String>,
+    stream: Option<OutputStream>,
+    sink: Option<Sink>,
+}
+
+#[derive(Clone)]
+pub enum PlayerMessage {
+    Play,
+}
+
+impl Player {
+    pub fn new(file_name: Option<String>) -> Self {
+        if let Ok((stream, stream_handle)) = OutputStream::try_default() {
+            match Sink::try_new(&stream_handle) {
+                Ok(sink) => match file_name {
+                    Some(file_name) => {
+                        // Load a sound from a file, using a path relative to Cargo.toml
+                        // let file = BufReader::new(File::open("examples/music.ogg").unwrap());
+                        if let Ok(file) = File::open(format!("./episodes/{}", file_name)) {
+                            let file_buf = BufReader::new(file);
+                            if let Ok(source) = Decoder::new(file_buf) {
+                                sink.append(source);
+                                sink.play();
+                                Self {
+                                    file_name: Some(file_name),
+                                    stream: Some(stream),
+                                    sink: Some(sink),
+                                }
+                            } else {
+                                Self {
+                                    file_name: None,
+                                    stream: None,
+                                    sink: None,
+                                }
+                            }
+                        } else {
+                            Self {
+                                file_name: None,
+                                stream: None,
+                                sink: None,
+                            }
+                        }
+                    }
+                    None => Self {
+                        file_name: None,
+                        stream: Some(stream),
+                        sink: Some(sink),
+                    },
+                },
+                Err(_) => Self {
+                    file_name: None,
+                    stream: None,
+                    sink: None,
+                },
+            }
+        } else {
+            Self {
+                file_name: None,
+                stream: None,
+                sink: None,
+            }
+        }
+    }
+
+    pub fn update(&mut self, message: PlayerMessage) {
+        match message {
+            PlayerMessage::Play => match &self.sink {
+                Some(sink) => sink.play(),
+                None => (),
+            },
+        }
+    }
+
+    pub fn view(&self) -> Element<Message> {
+        container(row!(
+            text("Player"),
+            button(text(">")).on_press(Message::PlayerPlay)
+        ))
+        .into()
     }
 }
