@@ -98,7 +98,6 @@ impl Application for AppLayout {
                                     Episode::new(
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
-                                        n.file_name.to_owned(),
                                         n.downloaded,
                                     )
                                 })
@@ -124,7 +123,6 @@ impl Application for AppLayout {
                                     Episode::new(
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
-                                        n.file_name.to_owned(),
                                         n.downloaded,
                                     )
                                 })
@@ -224,15 +222,15 @@ impl Application for AppLayout {
         .width(300)
         .align_items(Alignment::Center);
         match self.app_view {
-            AppView::Feeds => match self.feeds.as_ref() {
+            AppView::Feeds => match &self.feeds {
                 Some(feeds) => row![column, feeds.view()].into(),
                 None => row![column, text("No feeds to show.")].into(),
             },
-            AppView::Episodes => match self.episodes.as_ref() {
+            AppView::Episodes => match &self.episodes {
                 Some(episodes) => row![column, episodes.view()].into(),
                 None => row![column, text("No episodes to show.")].into(),
             },
-            AppView::Config => match self.castiron_config.as_ref() {
+            AppView::Config => match &self.castiron_config {
                 Some(config) => row![column, config.view()].into(),
                 None => row![column, text("No config to show.")].into(),
             },

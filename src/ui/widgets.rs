@@ -19,7 +19,6 @@ use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
 
-#[derive(Clone)]
 pub struct FeedList {
     feeds: Vec<Feed>,
 }
@@ -53,7 +52,6 @@ impl FeedList {
     }
 }
 
-#[derive(Clone)]
 pub struct Feed {
     feed_url: String,
 }
@@ -127,7 +125,6 @@ impl Config {
     }
 }
 
-#[derive(Clone)]
 pub struct EpisodeList {
     episodes: Vec<Episode>,
 }
@@ -169,20 +166,17 @@ impl EpisodeList {
     }
 }
 
-#[derive(Clone)]
 pub struct Episode {
     guid: String,
     title: String,
-    file_name: String,
     downloaded: bool,
 }
 
 impl Episode {
-    pub fn new(guid: String, title: String, file_name: String, downloaded: bool) -> Self {
+    pub fn new(guid: String, title: String, downloaded: bool) -> Self {
         Self {
             guid,
             title,
-            file_name,
             downloaded,
         }
     }
@@ -221,6 +215,7 @@ impl Episode {
     }
 }
 
+#[allow(dead_code)] // The stream isn't called anywhere, but it is necessary to keep the sink alive
 pub struct Player {
     guid: Option<String>,
     stream: Option<OutputStream>,
