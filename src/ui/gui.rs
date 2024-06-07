@@ -1,4 +1,4 @@
-use iced::widget::{button, column, row, text, text_input};
+use iced::widget::{button, column, row, text, text_input, vertical_space};
 use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
@@ -34,8 +34,7 @@ pub enum Message {
     DownloadEpisode(String),
     EpisodeDownloaded(Result<(), String>),
     PlayEpisode(String),
-    PlayerPlay,
-    PlayerPlaying,
+    PlayerMessage(PlayerMessage),
 }
 
 impl Application for AppLayout {
@@ -66,6 +65,10 @@ impl Application for AppLayout {
 
     fn title(&self) -> String {
         String::from("Castiron")
+    }
+
+    fn theme(&self) -> Theme {
+        Theme::CatppuccinMocha
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -185,29 +188,40 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
-            Message::PlayEpisode(file_name) => {
-                self.player = Player::new(Some(file_name));
+            Message::PlayEpisode(guid) => {
+                self.player = Player::new(Some(guid));
                 Command::none()
             }
-            Message::PlayerPlay => {
-                self.player.update(PlayerMessage::Play);
+            Message::PlayerMessage(message) => {
+                self.player.update(message);
                 Command::none()
             }
-            Message::PlayerPlaying => Command::none(),
         }
     }
 
     fn view(&self) -> Element<Message> {
         let column = column![
-            button(text("Feeds")).on_press(Message::ViewFeeds),
-            button(text("Episodes")).on_press(Message::ViewEpisodes),
-            button(text("Config")).on_press(Message::ViewConfig),
-            text_input("add feed", self.feed_to_add.as_str()).on_input(Message::FeedToAddUpdated),
-            button(text("Add")).on_press(Message::AddFeed),
-            button(text("Sync")).on_press(Message::SyncEpisodes),
+            button(text("Feeds"))
+                .on_press(Message::ViewFeeds)
+                .width(200),
+            button(text("Episodes"))
+                .on_press(Message::ViewEpisodes)
+                .width(200),
+            button(text("Config"))
+                .on_press(Message::ViewConfig)
+                .width(200),
+            text_input("add feed", self.feed_to_add.as_str())
+                .on_input(Message::FeedToAddUpdated)
+                .width(200),
+            button(text("Add")).on_press(Message::AddFeed).width(200),
+            button(text("Sync"))
+                .on_press(Message::SyncEpisodes)
+                .width(200),
+            vertical_space(),
             self.player.view()
         ]
         .padding(20)
+        .width(300)
         .align_items(Alignment::Center);
         match self.app_view {
             AppView::Feeds => match self.feeds.as_ref() {

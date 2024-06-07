@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::BufReader;
 
 use crate::file_handling::config::{create_config, read_config};
-use crate::file_handling::episodes::get_episode_list_database;
+use crate::file_handling::episodes::{get_episode_by_guid, get_episode_list_database};
 use crate::file_handling::feeds::get_feed_list_database;
 use crate::networking::downloads::{download_episode_by_guid, sync_episode_list};
 use crate::types::config::CastironConfig;
@@ -12,9 +12,11 @@ use crate::types::feeds::FeedMeta;
 
 use super::gui::Message;
 use iced::widget::scrollable::Properties;
-use iced::widget::{button, column, container, row, text, Button, Column, Scrollable, Toggler};
+use iced::widget::{
+    button, column, container, row, text, Button, Column, Scrollable, Text, Toggler,
+};
 use iced::widget::{container::Appearance, scrollable::Direction};
-use iced::{Border, Color, Element, Renderer, Shadow, Theme};
+use iced::{Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
 
 #[derive(Clone)]
@@ -62,22 +64,19 @@ impl Feed {
     }
     pub fn view(&self) -> Element<Message> {
         container(row!(text(self.feed_url.to_owned())))
-            .style(Appearance {
-                background: Some(iced::Background::Color(Color {
-                    r: 0.5,
-                    g: 0.5,
-                    b: 0.5,
-                    a: 1.0,
-                })),
-                text_color: None,
-                border: Border {
-                    color: Color::default(),
-                    width: 0.0,
-                    radius: [5.0, 5.0, 5.0, 5.0].into(),
-                },
-                shadow: Shadow::default(),
+            .style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                Appearance {
+                    background: Some(iced::Background::Color(palette.background.strong.color)),
+                    text_color: None,
+                    border: Border {
+                        color: Color::default(),
+                        width: 0.0,
+                        radius: [5.0, 5.0, 5.0, 5.0].into(),
+                    },
+                    shadow: Shadow::default(),
+                }
             })
-            .max_width(500)
             .center_x()
             .center_y()
             .padding(20)
@@ -145,6 +144,8 @@ impl EpisodeList {
                 col.push(content.view())
             })])
         .direction(Direction::Vertical(Properties::default()))
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into()
     }
     pub async fn load_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
@@ -187,28 +188,25 @@ impl Episode {
     }
     pub fn view(&self) -> Element<Message> {
         let action_button: Button<Message, Theme, Renderer> = match self.downloaded {
-            true => button(text("Play")).on_press(Message::PlayEpisode(self.file_name.to_owned())),
+            true => button(text("Play")).on_press(Message::PlayEpisode(self.guid.to_owned())),
             false => {
                 button(text("Download")).on_press(Message::DownloadEpisode(self.guid.to_owned()))
             }
         };
         container(row!(text(self.title.to_owned()), action_button))
-            .style(Appearance {
-                background: Some(iced::Background::Color(Color {
-                    r: 0.5,
-                    g: 0.5,
-                    b: 0.5,
-                    a: 1.0,
-                })),
-                text_color: None,
-                border: Border {
-                    color: Color::default(),
-                    width: 0.0,
-                    radius: [5.0, 5.0, 5.0, 5.0].into(),
-                },
-                shadow: Shadow::default(),
+            .style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                Appearance {
+                    background: Some(iced::Background::Color(palette.background.strong.color)),
+                    text_color: None,
+                    border: Border {
+                        color: Color::default(),
+                        width: 0.0,
+                        radius: [5.0, 5.0, 5.0, 5.0].into(),
+                    },
+                    shadow: Shadow::default(),
+                }
             })
-            .max_width(500)
             .center_x()
             .center_y()
             .padding(20)
@@ -224,67 +222,78 @@ impl Episode {
 }
 
 pub struct Player {
-    file_name: Option<String>,
+    guid: Option<String>,
     stream: Option<OutputStream>,
     sink: Option<Sink>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum PlayerMessage {
     Play,
+    Pause,
 }
 
 impl Player {
-    pub fn new(file_name: Option<String>) -> Self {
-        if let Ok((stream, stream_handle)) = OutputStream::try_default() {
-            match Sink::try_new(&stream_handle) {
-                Ok(sink) => match file_name {
-                    Some(file_name) => {
-                        // Load a sound from a file, using a path relative to Cargo.toml
-                        // let file = BufReader::new(File::open("examples/music.ogg").unwrap());
-                        if let Ok(file) = File::open(format!("./episodes/{}", file_name)) {
-                            let file_buf = BufReader::new(file);
-                            if let Ok(source) = Decoder::new(file_buf) {
-                                sink.append(source);
-                                sink.play();
-                                Self {
-                                    file_name: Some(file_name),
-                                    stream: Some(stream),
-                                    sink: Some(sink),
-                                }
-                            } else {
-                                Self {
-                                    file_name: None,
-                                    stream: None,
-                                    sink: None,
+    pub fn new(guid: Option<String>) -> Self {
+        match guid {
+            Some(guid) => {
+                if let Ok(episode) = get_episode_by_guid(&guid) {
+                    if let Ok((stream, stream_handle)) = OutputStream::try_default() {
+                        match Sink::try_new(&stream_handle) {
+                            Ok(sink) => {
+                                if let Ok(file) =
+                                    File::open(format!("./episodes/{}", episode.file_name))
+                                {
+                                    let file_buf = BufReader::new(file);
+                                    if let Ok(source) = Decoder::new(file_buf) {
+                                        sink.append(source);
+                                        sink.play();
+                                        Self {
+                                            guid: Some(episode.guid),
+                                            stream: Some(stream),
+                                            sink: Some(sink),
+                                        }
+                                    } else {
+                                        Self {
+                                            guid: None,
+                                            stream: None,
+                                            sink: None,
+                                        }
+                                    }
+                                } else {
+                                    Self {
+                                        guid: None,
+                                        stream: None,
+                                        sink: None,
+                                    }
                                 }
                             }
-                        } else {
-                            Self {
-                                file_name: None,
+                            Err(_) => Self {
+                                guid: None,
                                 stream: None,
                                 sink: None,
-                            }
+                            },
+                        }
+                    } else {
+                        Self {
+                            guid: None,
+                            stream: None,
+                            sink: None,
                         }
                     }
-                    None => Self {
-                        file_name: None,
-                        stream: Some(stream),
-                        sink: Some(sink),
-                    },
-                },
-                Err(_) => Self {
-                    file_name: None,
-                    stream: None,
-                    sink: None,
-                },
+                } else {
+                    Self {
+                        guid: None,
+                        stream: None,
+                        sink: None,
+                    }
+                }
             }
-        } else {
-            Self {
-                file_name: None,
+            None => Self {
+                guid: None,
                 stream: None,
                 sink: None,
-            }
+            },
         }
     }
 
@@ -294,13 +303,30 @@ impl Player {
                 Some(sink) => sink.play(),
                 None => (),
             },
+            PlayerMessage::Pause => match &self.sink {
+                Some(sink) => sink.pause(),
+                None => (),
+            },
         }
     }
 
     pub fn view(&self) -> Element<Message> {
-        container(row!(
-            text("Player"),
-            button(text(">")).on_press(Message::PlayerPlay)
+        let title: Text<Theme, Renderer> = match &self.guid {
+            Some(guid) => {
+                let episode = get_episode_by_guid(&guid);
+                match episode {
+                    Ok(episode) => text(format!("{}", episode.title)),
+                    Err(_) => text("Not Playing"),
+                }
+            }
+            None => text("Not Playing"),
+        };
+        container(column!(
+            title,
+            row!(
+                button(text("Play")).on_press(Message::PlayerMessage(PlayerMessage::Play)),
+                button(text("Pause")).on_press(Message::PlayerMessage(PlayerMessage::Pause))
+            )
         ))
         .into()
     }
