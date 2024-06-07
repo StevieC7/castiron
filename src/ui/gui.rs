@@ -35,6 +35,7 @@ pub enum Message {
     EpisodeDownloaded(Result<(), String>),
     PlayEpisode(String),
     PlayerMessage(PlayerMessage),
+    // EpisodesMessage(EpisodesMessage),
 }
 
 impl Application for AppLayout {
@@ -193,7 +194,13 @@ impl Application for AppLayout {
             Message::PlayerMessage(message) => {
                 self.player.update(message);
                 Command::none()
-            }
+            } // Message::EpisodesMessage(message) => match &mut self.episodes {
+              //     Some(episode_list) => {
+              //         // episode_list.update(message);
+              //         Command::none()
+              //     }
+              //     None => Command::none(),
+              // },
         }
     }
 
