@@ -3,7 +3,7 @@ use std::io;
 
 use crate::{
     file_handling::feeds::{add_feed_to_database, get_feed_list_database},
-    networking::{downloads::download_episodes, feeds::update_feeds},
+    networking::feeds::update_feeds,
 };
 
 #[async_recursion]
@@ -12,11 +12,6 @@ pub async fn tui_loop() {
     match feed_list_result {
         Ok(_) => println!("Finished updating feeds."),
         Err(e) => println!("Error occurred while fetching feed list: {:?}", e),
-    }
-    let download_result = download_episodes().await;
-    match download_result {
-        Ok(_) => println!("Finished downloading episodes."),
-        Err(e) => println!("Error occurred while downloading episodes: {:?}", e),
     }
     println!("ADD podcast, LIST shows");
     let mut mode_selection: String = String::new();

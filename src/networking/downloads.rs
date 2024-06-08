@@ -12,7 +12,7 @@ use crate::{
             add_episode_to_database, get_episode_by_guid, get_episode_list_database,
             update_episode_download_status,
         },
-        feeds::{check_episode_exists, get_feed_list_database, load_feed_xml, update_feed_title},
+        feeds::{get_feed_list_database, load_feed_xml, update_feed_title},
     },
     types::{episodes::Episode, errors::CustomError},
 };
@@ -100,20 +100,6 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
     }
     let result = get_episode_list_database()?;
     Ok(Some(result))
-}
-
-// TODO: refactor to obtain as many of latest episodes as user specifies
-pub async fn download_episodes() -> Result<(), CustomError> {
-    let episode_collection = get_episode_list_database().unwrap_or(Vec::new());
-    for episode in episode_collection {
-        if let Ok(true) = check_episode_exists(episode.file_name.as_str()) {
-            println!("Episode already exists {:?}", episode.file_name);
-            continue;
-        } else {
-            download_episode_by_guid(episode.guid).await?;
-        }
-    }
-    Ok(())
 }
 
 async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomError> {

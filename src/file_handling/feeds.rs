@@ -1,10 +1,6 @@
 use crate::types::{errors::CustomError, feeds::FeedMeta};
 use sqlite::open;
-use std::{
-    fs::{read_dir, read_to_string},
-    io::Error as IOError,
-    path::Path,
-};
+use std::{fs::read_to_string, io::Error as IOError, path::Path};
 
 pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
@@ -80,27 +76,20 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
     Ok(feeds)
 }
 
+pub fn delete_feed_from_database_only(id: i32) -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("DELETE FROM feeds WHERE id = {id};");
+    connection.execute(query)?;
+    Ok(())
+}
+
+pub fn _delete_associated_episodes_and_xml(_id: i32) {
+    todo!()
+}
+
 pub fn load_feed_xml(xml_file_path: String) -> Result<String, IOError> {
     let data = read_to_string(xml_file_path)?;
     Ok(data)
-}
-
-pub fn check_episode_exists(file_name: &str) -> Result<bool, IOError> {
-    let mut episode_list = read_dir("./episodes")?;
-    let found_existing = episode_list.find(|episode| match episode {
-        Ok(entry) => {
-            if entry.file_name() == file_name {
-                true
-            } else {
-                false
-            }
-        }
-        Err(_e) => false,
-    });
-    match found_existing {
-        Some(_thing) => Ok(true),
-        None => Ok(false),
-    }
 }
 
 #[cfg(test)]
@@ -120,15 +109,6 @@ mod tests {
             assert!(get_feed_list_database().is_ok())
         } else {
             assert!(get_feed_list_database().is_err())
-        }
-    }
-
-    #[test]
-    fn test_check_episode_exists() {
-        if Path::new("./episodes").exists() {
-            assert!(check_episode_exists("foo").is_ok())
-        } else {
-            assert!(check_episode_exists("foo").is_err())
         }
     }
 }

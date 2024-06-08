@@ -4,7 +4,7 @@ use iced::{executor, Alignment, Application, Command, Element};
 
 use crate::file_handling::config::create_config;
 use crate::file_handling::episodes::delete_episode_from_fs;
-use crate::file_handling::feeds::add_feed_to_database;
+use crate::file_handling::feeds::{add_feed_to_database, delete_feed_from_database_only};
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta, ui::AppView};
 
@@ -37,6 +37,7 @@ pub enum Message {
     EpisodeDownloaded(Result<(), String>),
     PlayEpisode(String),
     PlayerMessage(PlayerMessage),
+    UnfollowFeed(i32),
     // EpisodesMessage(EpisodesMessage),
 }
 
@@ -82,8 +83,8 @@ impl Application for AppLayout {
                     let feed_list = data
                         .iter()
                         .map(|n| match &n.feed_title {
-                            Some(feed_title) => Feed::new(feed_title.to_owned()),
-                            None => Feed::new(n.feed_url.to_owned()),
+                            Some(feed_title) => Feed::new(n.id, feed_title.to_owned()),
+                            None => Feed::new(n.id, n.feed_url.to_owned()),
                         })
                         .collect();
                     self.feeds = Some(FeedList::new(feed_list));
@@ -204,6 +205,13 @@ impl Application for AppLayout {
                 Ok(_) => Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
                 Err(e) => {
                     eprintln!("Error deleting episode: {:?}", e);
+                    Command::none()
+                }
+            },
+            Message::UnfollowFeed(id) => match delete_feed_from_database_only(id) {
+                Ok(_) => Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+                Err(e) => {
+                    eprintln!("Error deleting feed: {:?}", e);
                     Command::none()
                 }
             }, // Message::EpisodesMessage(message) => match &mut self.episodes {

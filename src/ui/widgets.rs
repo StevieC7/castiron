@@ -52,32 +52,36 @@ impl FeedList {
 }
 
 pub struct Feed {
+    id: i32,
     feed_title: String,
 }
 
 impl Feed {
-    pub fn new(feed_title: String) -> Self {
-        Self { feed_title }
+    pub fn new(id: i32, feed_title: String) -> Self {
+        Self { id, feed_title }
     }
     pub fn view(&self) -> Element<Message> {
-        container(row!(text(self.feed_title.to_owned())))
-            .style(|theme: &Theme| {
-                let palette = theme.extended_palette();
-                Appearance {
-                    background: Some(iced::Background::Color(palette.background.strong.color)),
-                    text_color: None,
-                    border: Border {
-                        color: Color::default(),
-                        width: 0.0,
-                        radius: [5.0, 5.0, 5.0, 5.0].into(),
-                    },
-                    shadow: Shadow::default(),
-                }
-            })
-            .center_x()
-            .center_y()
-            .padding(20)
-            .into()
+        container(row!(
+            text(self.feed_title.to_owned()),
+            button(text("Unfollow")).on_press(Message::UnfollowFeed(self.id))
+        ))
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            Appearance {
+                background: Some(iced::Background::Color(palette.background.strong.color)),
+                text_color: None,
+                border: Border {
+                    color: Color::default(),
+                    width: 0.0,
+                    radius: [5.0, 5.0, 5.0, 5.0].into(),
+                },
+                shadow: Shadow::default(),
+            }
+        })
+        .center_x()
+        .center_y()
+        .padding(20)
+        .into()
     }
 }
 
