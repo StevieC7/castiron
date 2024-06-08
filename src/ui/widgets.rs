@@ -54,15 +54,15 @@ impl FeedList {
 }
 
 pub struct Feed {
-    feed_url: String,
+    feed_title: String,
 }
 
 impl Feed {
-    pub fn new(feed_url: String) -> Self {
-        Self { feed_url }
+    pub fn new(feed_title: String) -> Self {
+        Self { feed_title }
     }
     pub fn view(&self) -> Element<Message> {
-        container(row!(text(self.feed_url.to_owned())))
+        container(row!(text(self.feed_title.to_owned())))
             .style(|theme: &Theme| {
                 let palette = theme.extended_palette();
                 Appearance {
@@ -314,26 +314,32 @@ impl Player {
                     if let Ok((stream, stream_handle)) = OutputStream::try_default() {
                         match Sink::try_new(&stream_handle) {
                             Ok(sink) => {
+                                println!("episode file name {}", episode.file_name);
                                 if let Ok(file) =
                                     File::open(format!("./episodes/{}", episode.file_name))
                                 {
                                     let file_buf = BufReader::new(file);
-                                    if let Ok(source) = Decoder::new(file_buf) {
-                                        sink.append(source);
-                                        sink.play();
-                                        Self {
-                                            guid: Some(episode.guid),
-                                            stream: Some(stream),
-                                            sink: Some(sink),
+                                    match Decoder::new(file_buf) {
+                                        Ok(source) => {
+                                            sink.append(source);
+                                            sink.play();
+                                            Self {
+                                                guid: Some(episode.guid),
+                                                stream: Some(stream),
+                                                sink: Some(sink),
+                                            }
                                         }
-                                    } else {
-                                        Self {
-                                            guid: None,
-                                            stream: None,
-                                            sink: None,
+                                        Err(e) => {
+                                            eprintln!("{:?}", e);
+                                            Self {
+                                                guid: None,
+                                                stream: None,
+                                                sink: None,
+                                            }
                                         }
                                     }
                                 } else {
+                                    eprintln!("failed to open file {}", episode.file_name);
                                     Self {
                                         guid: None,
                                         stream: None,
@@ -341,13 +347,17 @@ impl Player {
                                     }
                                 }
                             }
-                            Err(_) => Self {
-                                guid: None,
-                                stream: None,
-                                sink: None,
-                            },
+                            Err(_) => {
+                                eprintln!("failed to create Sink");
+                                Self {
+                                    guid: None,
+                                    stream: None,
+                                    sink: None,
+                                }
+                            }
                         }
                     } else {
+                        eprintln!("failed to create OutputStream");
                         Self {
                             guid: None,
                             stream: None,
@@ -355,6 +365,7 @@ impl Player {
                         }
                     }
                 } else {
+                    eprintln!("failed to get episode from db");
                     Self {
                         guid: None,
                         stream: None,

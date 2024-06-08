@@ -3,7 +3,7 @@ use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
 use crate::file_handling::config::create_config;
-use crate::file_handling::feeds::add_feed_to_database;
+use crate::file_handling::feeds::{add_feed_to_database, get_feed_list_database};
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta, ui::AppView};
 
@@ -79,7 +79,10 @@ impl Application for AppLayout {
                 Ok(data) => {
                     let feed_list = data
                         .iter()
-                        .map(|n| Feed::new(n.feed_url.to_owned()))
+                        .map(|n| match &n.feed_title {
+                            Some(feed_title) => Feed::new(feed_title.to_owned()),
+                            None => Feed::new(n.feed_url.to_owned()),
+                        })
                         .collect();
                     self.feeds = Some(FeedList::new(feed_list));
                     Command::none()
@@ -128,6 +131,20 @@ impl Application for AppLayout {
                                     )
                                 })
                                 .collect();
+                            let feed_list = get_feed_list_database();
+                            match feed_list {
+                                Ok(list) => {
+                                    self.feeds = Some(FeedList::new(
+                                        list.iter()
+                                            .map(|n| match &n.feed_title {
+                                                Some(title) => Feed::new(title.to_owned()),
+                                                None => Feed::new(n.feed_url.to_owned()),
+                                            })
+                                            .collect(),
+                                    ));
+                                }
+                                Err(_) => {}
+                            }
                             self.episodes = Some(EpisodeList::new(episode_list));
                         }
                         None => {}

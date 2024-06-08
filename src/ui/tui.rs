@@ -40,7 +40,7 @@ pub async fn tui_loop() {
             println!("------Feeds You Follow------");
             if let Ok(urls) = get_feed_list_database() {
                 urls.iter()
-                    .for_each(|n| println!("{}: {}", n.index, n.feed_url));
+                    .for_each(|n| println!("{}: {}", n.id, n.feed_url));
             } else {
                 println!("something wrong")
             }

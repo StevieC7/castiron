@@ -12,7 +12,7 @@ use crate::{
             add_episode_to_database, get_episode_by_guid, get_episode_list_database,
             update_episode_download_status,
         },
-        feeds::{check_episode_exists, get_feed_id_by_url, load_feeds_xml},
+        feeds::{check_episode_exists, get_feed_list_database, load_feed_xml, update_feed_title},
     },
     types::{episodes::Episode, errors::CustomError},
 };
@@ -21,24 +21,27 @@ use super::feeds::update_feeds;
 
 pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
     update_feeds().await?;
-    let feed_collection = load_feeds_xml()?;
+    let feed_collection = get_feed_list_database()?;
     let mut episodes: Vec<Episode> = Vec::new();
     for feed in feed_collection {
-        let feed_contents = feed.as_str();
-        let mut feed_url = String::new();
+        let content = load_feed_xml(feed.xml_file_path.unwrap_or(String::new()))?;
+        let feed_contents = content.as_str();
         let doc = Document::parse(feed_contents)?;
         let channel_node = doc.descendants().find(|n| n.has_tag_name("channel"));
         match channel_node {
             Some(c_node) => {
-                let link_node = c_node.descendants().find(|n| n.has_tag_name("atom:link"));
-                match link_node {
-                    Some(link) => feed_url = link.text().unwrap().to_string(),
-                    None => (),
+                let title_node = c_node.descendants().find(|n| n.has_tag_name("title"));
+                match title_node {
+                    Some(title) => {
+                        match update_feed_title(feed.id, title.text().unwrap().to_string()) {
+                            _ => {}
+                        }
+                    }
+                    None => {}
                 }
             }
             None => (),
         }
-        let feed_id = get_feed_id_by_url(&feed_url)?;
         let episode_nodes = doc.descendants().filter(|n| n.has_tag_name("item"));
         for e_node in episode_nodes {
             let title_node = e_node.descendants().find(|n| n.has_tag_name("title"));
@@ -76,7 +79,7 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
                                     date: episode_date.to_string(),
                                     played: false,
                                     played_seconds: 0,
-                                    feed_id,
+                                    feed_id: feed.id,
                                     url: url.to_string(),
                                     downloaded: false,
                                 })

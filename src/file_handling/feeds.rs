@@ -8,7 +8,23 @@ use std::{
 
 pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT); INSERT INTO feeds (url,xml_file_path) VALUES ('{url}', NULL);");
+    let query = format!("CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT, feed_title TEXT); INSERT INTO feeds (url,xml_file_path,feed_title) VALUES ('{url}', NULL, NULL);");
+    connection.execute(query)?;
+    Ok(())
+}
+
+pub fn update_feed_title(id: i32, title: String) -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let mut sanitized_title = title.replace("'", "''");
+    sanitized_title = sanitized_title.replace("\"", "\"\"");
+    let query = format!("UPDATE feeds SET feed_title = '{sanitized_title}' WHERE id = {id};");
+    connection.execute(query)?;
+    Ok(())
+}
+
+pub fn update_feed_file_path(id: i32, file_path: String) -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("UPDATE feeds SET xml_file_path = '{file_path}' WHERE id = {id};");
     connection.execute(query)?;
     Ok(())
 }
@@ -19,14 +35,15 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
     let mut feeds: Vec<FeedMeta> = Vec::new();
     connection.iterate(query, |n| {
         let mut result_tuple: FeedMeta = FeedMeta {
-            index: 0,
+            id: 0,
             feed_url: String::new(),
             xml_file_path: None,
+            feed_title: None,
         };
         let id_kv_tuple = n.iter().find(|val| val.0 == "id");
         match id_kv_tuple {
             Some(wrapped_id) => match wrapped_id.1 {
-                Some(id) => result_tuple.index = id.to_string().parse().unwrap(),
+                Some(id) => result_tuple.id = id.to_string().parse().unwrap(),
                 None => (),
             },
             None => (),
@@ -47,29 +64,25 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
             },
             None => (),
         }
+        let title_kv_pair = n.iter().find(|val| val.0 == "feed_title");
+        match title_kv_pair {
+            Some(title_tuple) => match title_tuple.1 {
+                Some(title) => {
+                    result_tuple.feed_title = Some(title.to_string());
+                }
+                None => (),
+            },
+            None => (),
+        }
         feeds.push(result_tuple);
         true
     })?;
     Ok(feeds)
 }
 
-pub fn load_feeds_xml() -> Result<Vec<String>, IOError> {
-    println!("Loading feeds xml");
-    let feed_path_list = read_dir("./shows")?;
-    let mut feed_collection = Vec::new();
-    for feed in feed_path_list {
-        match feed {
-            Ok(directory) => {
-                if let Some("./shows/.DS_Store") = directory.path().to_str() {
-                    continue;
-                }
-                let feed_content = read_to_string(directory.path())?;
-                feed_collection.push(feed_content);
-            }
-            Err(e) => println!("{e}"),
-        }
-    }
-    Ok(feed_collection)
+pub fn load_feed_xml(xml_file_path: String) -> Result<String, IOError> {
+    let data = read_to_string(xml_file_path)?;
+    Ok(data)
 }
 
 pub fn check_episode_exists(file_name: &str) -> Result<bool, IOError> {
@@ -90,27 +103,8 @@ pub fn check_episode_exists(file_name: &str) -> Result<bool, IOError> {
     }
 }
 
-pub fn get_feed_id_by_url(url: &String) -> Result<i32, CustomError> {
-    let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("SELECT id FROM feeds WHERE url = '{url}' LIMIT 1;");
-    let mut result = 0;
-    connection.iterate(query, |n| {
-        let id_kv_tuple = n.iter().find(|val| val.0 == "id");
-        match id_kv_tuple {
-            Some(wrapped_id) => match wrapped_id.1 {
-                Some(id) => result = id.to_string().parse().unwrap(),
-                None => (),
-            },
-            None => (),
-        }
-        true
-    })?;
-    Ok(result)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
 
     use super::*;
 
@@ -126,29 +120,6 @@ mod tests {
             assert!(get_feed_list_database().is_ok())
         } else {
             assert!(get_feed_list_database().is_err())
-        }
-    }
-
-    #[test]
-    fn test_load_feeds_xml() {
-        let shows_directory = read_dir("./shows");
-        match shows_directory {
-            Ok(mut result) => {
-                let first = match result.nth(0) {
-                    Some(dir_entry) => match dir_entry {
-                        Ok(val) => Some(val.file_name()),
-                        Err(_) => None,
-                    },
-                    None => None,
-                };
-                // Check for OSX specific DS_Store file
-                if first != Some(OsString::from(".DS_Store")) && result.count() > 0 {
-                    assert!(load_feeds_xml().is_ok())
-                } else {
-                    assert!(load_feeds_xml().is_err())
-                }
-            }
-            Err(_) => assert!(load_feeds_xml().is_err()),
         }
     }
 
