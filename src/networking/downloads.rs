@@ -110,8 +110,7 @@ pub async fn download_episodes() -> Result<(), CustomError> {
             println!("Episode already exists {:?}", episode.file_name);
             continue;
         } else {
-            download_episode(episode.url.as_str(), episode.file_name.as_str()).await?;
-            update_episode_download_status(&episode.guid)?;
+            download_episode_by_guid(episode.guid).await?;
         }
     }
     Ok(())
@@ -130,6 +129,6 @@ pub async fn download_episode_by_guid(guid: String) -> Result<String, CustomErro
     let episode = get_episode_by_guid(&guid)?;
     println!("DEBUG: retrieved {:?}", episode);
     download_episode(episode.url.as_str(), episode.file_name.as_str()).await?;
-    update_episode_download_status(&guid)?;
+    update_episode_download_status(&guid, true)?;
     Ok(String::from("Download successful."))
 }

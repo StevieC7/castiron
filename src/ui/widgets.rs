@@ -13,9 +13,7 @@ use crate::types::feeds::FeedMeta;
 
 use super::gui::Message;
 use iced::widget::scrollable::Properties;
-use iced::widget::{
-    button, column, container, row, text, Button, Column, Scrollable, Text, Toggler,
-};
+use iced::widget::{button, column, container, row, text, Column, Row, Scrollable, Text, Toggler};
 use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
@@ -258,13 +256,16 @@ impl Episode {
         }
     }
     pub fn view(&self) -> Element<Message> {
-        let action_button: Button<Message, Theme, Renderer> = match self.downloaded {
-            true => button(text("Play")).on_press(Message::PlayEpisode(self.guid.to_owned())),
-            false => {
-                button(text("Download")).on_press(Message::DownloadEpisode(self.guid.to_owned()))
-            }
-        };
-        container(row!(text(self.title.to_owned()), action_button))
+        let action_container: Row<Message, Theme, Renderer> =
+            match self.downloaded {
+                true => row!(
+                    button(text("Play")).on_press(Message::PlayEpisode(self.guid.to_owned())),
+                    button(text("Delete")).on_press(Message::DeleteEpisode(self.guid.to_owned())),
+                ),
+                false => row!(button(text("Download"))
+                    .on_press(Message::DownloadEpisode(self.guid.to_owned()))),
+            };
+        container(row!(text(self.title.to_owned()), action_container))
             .style(|theme: &Theme| {
                 let palette = theme.extended_palette();
                 Appearance {

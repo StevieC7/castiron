@@ -1,6 +1,6 @@
 use crate::types::{episodes::Episode, errors::CustomError};
 use sqlite::{open, Error};
-use std::path::Path;
+use std::{fs::remove_file, path::Path};
 
 pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
     let Episode {
@@ -46,10 +46,32 @@ pub fn get_episode_by_guid(guid: &String) -> Result<Episode, CustomError> {
     }
 }
 
-pub fn update_episode_download_status(guid: &String) -> Result<(), CustomError> {
+pub fn update_episode_download_status(guid: &String, downloaded: bool) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("UPDATE episodes SET downloaded = true WHERE guid = '{guid}';");
+    let query = format!("UPDATE episodes SET downloaded = {downloaded} WHERE guid = '{guid}';");
     connection.execute(query)?;
+    Ok(())
+}
+
+pub fn delete_episode_from_fs(guid: String) -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("SELECT file_name FROM episodes WHERE guid = '{guid}'");
+    let mut delete_file_name = String::new();
+    connection.iterate(query, |n| {
+        let result_tuple = n.get(0);
+        match result_tuple {
+            Some(wrapped_file_name) => match wrapped_file_name.1 {
+                Some(file_name) => {
+                    delete_file_name = file_name.to_string();
+                }
+                None => (),
+            },
+            None => (),
+        }
+        true
+    })?;
+    remove_file(Path::new(format!("./episodes/{delete_file_name}").as_str()))?;
+    update_episode_download_status(&guid, false)?;
     Ok(())
 }
 
