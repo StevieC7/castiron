@@ -48,7 +48,6 @@ pub enum Message {
     PlayerMessage(PlayerMessage),
     PodQueueMessage(PodQueueMessage),
     UnfollowFeed(i32),
-    // EpisodesMessage(EpisodesMessage),
 }
 
 #[derive(Debug, Clone)]
@@ -94,8 +93,6 @@ impl Application for AppLayout {
                 Command::perform(Config::load_config(), Message::ConfigLoaded),
                 Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
                 Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
-                // TODO: find out how to defer this action until after episode list rendered, and only when config specifies auto download new
-                // Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
             ]),
         )
     }

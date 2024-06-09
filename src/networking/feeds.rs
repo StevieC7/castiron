@@ -30,7 +30,6 @@ pub async fn update_single_feed(feed: FeedMeta) -> Result<(), CustomError> {
         .create(true)
         .truncate(true)
         .open(feed.xml_file_path.unwrap_or_else(|| {
-            // TODO: update the feed xml_fil_path to equal the feed id
             should_set_xml_path_equal_id = true;
             format!("./shows/{a}.xml", a = feed.id)
         }))?;
