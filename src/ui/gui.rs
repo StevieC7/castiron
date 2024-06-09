@@ -1,12 +1,12 @@
-use iced::widget::{button, column, row, text, text_input, vertical_space};
+use iced::widget::{button, column, row, text, text_input, vertical_space, Column};
 use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
 
 use crate::file_handling::config::create_config;
-use crate::file_handling::episodes::delete_episode_from_fs;
+use crate::file_handling::episodes::{delete_episode_from_fs, get_episode_by_guid};
 use crate::file_handling::feeds::{add_feed_to_database, delete_feed_from_database_only};
 use crate::types::config::CastironConfig;
-use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta, ui::AppView};
+use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
 use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
 
@@ -17,6 +17,14 @@ pub struct AppLayout {
     castiron_config: Option<Config>,
     feed_to_add: String,
     player: Player,
+    queue: Vec<Episode>,
+}
+
+pub enum AppView {
+    Feeds,
+    Episodes,
+    Config,
+    Queue,
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +35,7 @@ pub enum Message {
     ConfigLoaded(Result<CastironConfig, String>),
     ViewEpisodes,
     ViewFeeds,
+    ViewQueue,
     ViewConfig,
     SaveConfig(Option<CastironConfig>),
     AddFeed,
@@ -37,8 +46,31 @@ pub enum Message {
     EpisodeDownloaded(Result<(), String>),
     PlayEpisode(String),
     PlayerMessage(PlayerMessage),
+    PodQueueMessage(PodQueueMessage),
     UnfollowFeed(i32),
     // EpisodesMessage(EpisodesMessage),
+}
+
+#[derive(Debug, Clone)]
+pub enum PodQueueMessage {
+    RemoveFromQueue(i32),
+    AddToQueue(String),
+}
+
+impl AppLayout {
+    pub fn view_queue(&self) -> Element<Message> {
+        self.queue
+            .iter()
+            .fold(Column::new().spacing(10), |col, content| {
+                col.push(row!(
+                    content.view(),
+                    button(text("Rm from queue")).on_press(Message::PodQueueMessage(
+                        PodQueueMessage::RemoveFromQueue(content.id)
+                    ))
+                ))
+            })
+            .into()
+    }
 }
 
 impl Application for AppLayout {
@@ -56,6 +88,7 @@ impl Application for AppLayout {
                 castiron_config: None,
                 feed_to_add: String::new(),
                 player: Player::new(None),
+                queue: Vec::new(),
             },
             Command::batch([
                 Command::perform(Config::load_config(), Message::ConfigLoaded),
@@ -102,7 +135,9 @@ impl Application for AppLayout {
                             let episode_list = found
                                 .iter()
                                 .map(|n| {
+                                    println!("Episode {} has id {}", n.title, n.id);
                                     Episode::new(
+                                        n.id,
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
                                         n.downloaded,
@@ -128,6 +163,7 @@ impl Application for AppLayout {
                                 .iter()
                                 .map(|n| {
                                     Episode::new(
+                                        n.id,
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
                                         n.downloaded,
@@ -154,6 +190,10 @@ impl Application for AppLayout {
             }
             Message::ViewFeeds => {
                 self.app_view = AppView::Feeds;
+                Command::none()
+            }
+            Message::ViewQueue => {
+                self.app_view = AppView::Queue;
                 Command::none()
             }
             Message::ViewConfig => {
@@ -214,13 +254,34 @@ impl Application for AppLayout {
                     eprintln!("Error deleting feed: {:?}", e);
                     Command::none()
                 }
-            }, // Message::EpisodesMessage(message) => match &mut self.episodes {
-               //     Some(episode_list) => {
-               //         // episode_list.update(message);
-               //         Command::none()
-               //     }
-               //     None => Command::none(),
-               // },
+            },
+            Message::PodQueueMessage(pod_queue_message) => {
+                match pod_queue_message {
+                    PodQueueMessage::RemoveFromQueue(id) => {
+                        let position = self.queue.iter().position(|pod| pod.id == id);
+                        match position {
+                            Some(index) => {
+                                println!("index {} removed", index);
+                                self.queue.remove(index);
+                            }
+                            None => {}
+                        }
+                    }
+                    PodQueueMessage::AddToQueue(guid) => {
+                        let episode = get_episode_by_guid(&guid);
+                        match episode {
+                            Ok(ep) => self.queue.push(Episode::new(
+                                ep.id,
+                                ep.guid,
+                                ep.title,
+                                ep.downloaded,
+                            )),
+                            Err(_) => (),
+                        }
+                    }
+                }
+                Command::none()
+            }
         }
     }
 
@@ -231,6 +292,9 @@ impl Application for AppLayout {
                 .width(200),
             button(text("Episodes"))
                 .on_press(Message::ViewEpisodes)
+                .width(200),
+            button(text("Queue"))
+                .on_press(Message::ViewQueue)
                 .width(200),
             button(text("Config"))
                 .on_press(Message::ViewConfig)
@@ -260,6 +324,10 @@ impl Application for AppLayout {
             AppView::Config => match &self.castiron_config {
                 Some(config) => row![column, config.view()].into(),
                 None => row![column, text("No config to show.")].into(),
+            },
+            AppView::Queue => match &self.queue.len() {
+                0 => row![column, text("Nothing queued yet.")].into(),
+                _ => row![column, self.view_queue()].into(),
             },
         }
     }

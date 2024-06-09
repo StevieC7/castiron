@@ -1,5 +1,6 @@
 #[derive(Debug, Clone)]
 pub struct Episode {
+    pub id: i32,
     pub guid: String,
     pub title: String,
     pub date: String,

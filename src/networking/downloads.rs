@@ -73,6 +73,7 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
                                     None => "fail.mp3".to_string(),
                                 };
                                 episodes.push(Episode {
+                                    id: 0,
                                     guid: guid.to_string(),
                                     file_name,
                                     title: episode_title.to_string(),

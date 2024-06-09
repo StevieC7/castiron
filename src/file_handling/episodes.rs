@@ -16,9 +16,10 @@ pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
     sanitized_title = sanitized_title.replace("\"", "\"\"");
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("
-        CREATE TABLE IF NOT EXISTS episodes(guid TEXT PRIMARY KEY, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_name TEXT, url TEXT, feed_id INTEGER, downloaded BOOLEAN);
+        CREATE TABLE IF NOT EXISTS episodes(id INTEGER PRIMARY KEY, guid TEXT, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_name TEXT, url TEXT, feed_id INTEGER, downloaded BOOLEAN);
+        CREATE UNIQUE INDEX IF NOT EXISTS guid_feed_id ON episodes (guid,feed_id);
         INSERT INTO episodes (guid, title, date, played, file_name, url, feed_id, downloaded) VALUES ('{guid}', '{sanitized_title}', '{date}', FALSE, '{file_name}', '{url}', '{feed_id}', FALSE)
-            ON CONFLICT (guid) DO NOTHING;
+            ON CONFLICT DO NOTHING;
     ");
     connection.execute(query)?;
     Ok(())
@@ -77,6 +78,7 @@ pub fn delete_episode_from_fs(guid: String) -> Result<(), CustomError> {
 
 fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) -> bool {
     let mut result_tuple: Episode = Episode {
+        id: 0,
         guid: String::new(),
         title: String::new(),
         date: String::new(),
@@ -87,6 +89,19 @@ fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) 
         feed_id: 0,
         downloaded: false,
     };
+    let id_kv_tuple = n.iter().find(|val| val.0 == "id");
+    match id_kv_tuple {
+        Some(wrapped_id) => match wrapped_id.1 {
+            Some(id) => {
+                result_tuple.id = match id.parse::<i32>() {
+                    Ok(parsed) => parsed,
+                    Err(_) => 0,
+                }
+            }
+            None => (),
+        },
+        None => (),
+    }
     let guid_kv_tuple = n.iter().find(|val| val.0 == "guid");
     match guid_kv_tuple {
         Some(wrapped_guid) => match wrapped_guid.1 {
@@ -198,6 +213,7 @@ mod tests {
             let delete_old_result = remove_file(&existing_db_file_path).is_ok();
             if let true = copy_result & delete_old_result {
                 assert!(add_episode_to_database(Episode {
+                    id: 0,
                     date: String::from("2024/05/30"),
                     guid: String::from("jkdfjskluizuien1"),
                     title: String::from("Interesting Show Title"),
@@ -223,6 +239,7 @@ mod tests {
             };
         } else {
             assert!(add_episode_to_database(Episode {
+                id: 0,
                 date: String::from("2024/05/30"),
                 guid: String::from("jkdfjskluizuien1"),
                 title: String::from("Interesting Show Title"),

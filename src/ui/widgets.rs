@@ -11,7 +11,7 @@ use crate::types::config::CastironConfig;
 use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
-use super::gui::Message;
+use super::gui::{Message, PodQueueMessage};
 use iced::widget::scrollable::Properties;
 use iced::widget::{button, column, container, row, text, Column, Row, Scrollable, Text, Toggler};
 use iced::widget::{container::Appearance, scrollable::Direction};
@@ -130,100 +130,25 @@ impl Config {
 
 pub struct EpisodeList {
     episodes: Vec<Episode>,
-    // visible_episodes: Range<usize>,
-    // previous_offset: f32,
 }
-
-// #[derive(Clone, Debug)]
-// pub enum EpisodesMessage {
-//     Scrolled(f32, usize, usize),
-// }
 
 impl EpisodeList {
     pub fn new(episodes: Vec<Episode>) -> Self {
-        Self {
-            episodes,
-            // visible_episodes: Range { start: 0, end: 20 },
-            // previous_offset: 0.0,
-        }
+        Self { episodes }
     }
     pub fn view(&self) -> Element<Message> {
-        // if let Some(visible) = self.episodes.get(self.visible_episodes.to_owned()) {
-        Scrollable::new(column![
-            // visible
-            self.episodes
-                .iter()
-                .fold(Column::new().spacing(10), |col, content| {
-                    col.push(content.view())
-                })
-        ])
-        // .on_scroll(|viewport| {
-        //     fn float_to_usize_or_zero(float: f32) -> usize {
-        //         let float_stringified = float.to_string();
-        //         match float_stringified.split('.').take(1).next() {
-        //             Some(string) => match string.parse::<usize>() {
-        //                 Ok(num) => num,
-        //                 Err(_) => 0,
-        //             },
-        //             None => 0,
-        //         }
-        //     }
-        //     // TODO: create state to hold how many episodes should be included in Range, and dynamically adjust this based on window resizes
-        //     let episode_height: usize = 250 + 10; // use episode height plus whatever spacing is added above
-        //     let episode_range_length: usize =
-        //         (float_to_usize_or_zero(viewport.bounds().height) / episode_height) + 10; // Always have more than needed so this is smooth
-        //     let mut start = self.visible_episodes.start;
-        //     let offset = float_to_usize_or_zero(viewport.absolute_offset().y);
-        //     let episodes_to_move = offset / episode_height;
-        //     match viewport.absolute_offset().y - self.previous_offset < 0.0 {
-        //         true => match start.checked_sub(episodes_to_move) {
-        //             Some(num) => {
-        //                 start = num;
-        //             }
-        //             None => {
-        //                 start = 0;
-        //             }
-        //         },
-        //         false => match start + episode_range_length + episodes_to_move
-        //             > self.episodes.len()
-        //         {
-        //             true => {
-        //                 println!("End would have been greater than episodes length");
-        //                 start = self.episodes.len() - episode_range_length - 10 + 1;
-        //             }
-        //             false => {
-        //                 start = start + episodes_to_move;
-        //             }
-        //         },
-        //     };
-        //     println!(
-        //         "start: {}, end: {}, episodes_to_move: {}",
-        //         start,
-        //         start + episode_range_length,
-        //         episodes_to_move
-        //     );
-        //     Message::EpisodesMessage(EpisodesMessage::Scrolled(
-        //         viewport.absolute_offset().y,
-        //         start,
-        //         start + episode_range_length,
-        //     ))
-        // })
+        Scrollable::new(column![self
+            .episodes
+            .iter()
+            .fold(Column::new().spacing(10), |col, content| {
+                col.push(content.view())
+            })])
         .direction(Direction::Vertical(Properties::default()))
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
-        // } else {
-        //     text("Oops").into()
-        // }
     }
-    // pub fn update(&mut self, message: EpisodesMessage) {
-    //     match message {
-    //         EpisodesMessage::Scrolled(prev_offset, start, end) => {
-    //             self.visible_episodes = Range { start, end };
-    //             self.previous_offset = prev_offset;
-    //         }
-    //     }
-    // }
+
     pub async fn load_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
         match get_episode_list_database() {
             Ok(data) => Ok(Some(data)),
@@ -246,48 +171,59 @@ impl EpisodeList {
 }
 
 pub struct Episode {
+    pub id: i32,
     guid: String,
     title: String,
     downloaded: bool,
 }
 
 impl Episode {
-    pub fn new(guid: String, title: String, downloaded: bool) -> Self {
+    pub fn new(id: i32, guid: String, title: String, downloaded: bool) -> Self {
         Self {
+            id,
             guid,
             title,
             downloaded,
         }
     }
     pub fn view(&self) -> Element<Message> {
-        let action_container: Row<Message, Theme, Renderer> =
-            match self.downloaded {
-                true => row!(
-                    button(text("Play")).on_press(Message::PlayEpisode(self.guid.to_owned())),
-                    button(text("Delete")).on_press(Message::DeleteEpisode(self.guid.to_owned())),
-                ),
-                false => row!(button(text("Download"))
-                    .on_press(Message::DownloadEpisode(self.guid.to_owned()))),
-            };
-        container(row!(text(self.title.to_owned()), action_container))
-            .style(|theme: &Theme| {
-                let palette = theme.extended_palette();
-                Appearance {
-                    background: Some(iced::Background::Color(palette.background.strong.color)),
-                    text_color: None,
-                    border: Border {
-                        color: Color::default(),
-                        width: 0.0,
-                        radius: [5.0, 5.0, 5.0, 5.0].into(),
-                    },
-                    shadow: Shadow::default(),
-                }
-            })
-            .height(250)
-            .center_x()
-            .center_y()
-            .padding(20)
-            .into()
+        let action_container: Row<Message, Theme, Renderer> = match self.downloaded {
+            true => row!(
+                button(text("Play")).on_press(Message::PlayEpisode(self.guid.to_owned())),
+                button(text("Delete")).on_press(Message::DeleteEpisode(self.guid.to_owned())),
+                button(text("Queue")).on_press(Message::PodQueueMessage(
+                    PodQueueMessage::AddToQueue(self.guid.to_owned())
+                ))
+            ),
+            false => row!(
+                button(text("Download")).on_press(Message::DownloadEpisode(self.guid.to_owned())),
+                button(text("Queue")).on_press(Message::PodQueueMessage(
+                    PodQueueMessage::AddToQueue(self.guid.to_owned())
+                ))
+            ),
+        };
+        container(row!(
+            text(self.title.to_owned()).width(300),
+            action_container
+        ))
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            Appearance {
+                background: Some(iced::Background::Color(palette.background.strong.color)),
+                text_color: None,
+                border: Border {
+                    color: Color::default(),
+                    width: 0.0,
+                    radius: [5.0, 5.0, 5.0, 5.0].into(),
+                },
+                shadow: Shadow::default(),
+            }
+        })
+        .height(150)
+        .center_x()
+        .center_y()
+        .padding(20)
+        .into()
     }
 
     pub async fn download_single_episode(guid: String) -> Result<(), String> {
