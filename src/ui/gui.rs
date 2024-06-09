@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use iced::widget::{button, column, row, text, text_input, vertical_space, Column};
-use iced::Theme;
 use iced::{executor, Alignment, Application, Command, Element};
+use iced::{time, Subscription, Theme};
 
 use crate::file_handling::config::create_config;
 use crate::file_handling::episodes::{delete_episode_from_fs, get_episode_by_guid};
@@ -46,6 +48,7 @@ pub enum Message {
     EpisodeDownloaded(Result<(), String>),
     PlayEpisode(String),
     PlayerMessage(PlayerMessage),
+    PlayerProgressed,
     PodQueueMessage(PodQueueMessage),
     UnfollowFeed(i32),
 }
@@ -279,7 +282,28 @@ impl Application for AppLayout {
                 }
                 Command::none()
             }
+            Message::PlayerProgressed => {
+                match &self.player.sink {
+                    Some(sink) => match sink.empty() {
+                        true => {
+                            self.queue.remove(0);
+                            let guid = match self.queue.get(0) {
+                                Some(episode) => episode.guid.to_owned(),
+                                None => String::new(),
+                            };
+                            self.player = Player::new(Some(guid));
+                        }
+                        false => {}
+                    },
+                    None => {}
+                }
+                Command::none()
+            }
         }
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        time::every(Duration::from_millis(100)).map(|_| Message::PlayerProgressed)
     }
 
     fn view(&self) -> Element<Message> {

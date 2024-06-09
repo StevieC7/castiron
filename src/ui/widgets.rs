@@ -178,7 +178,7 @@ impl EpisodeList {
 
 pub struct Episode {
     pub id: i32,
-    guid: String,
+    pub guid: String,
     title: String,
     downloaded: bool,
 }
@@ -244,7 +244,7 @@ impl Episode {
 pub struct Player {
     guid: Option<String>,
     stream: Option<OutputStream>,
-    sink: Option<Sink>,
+    pub sink: Option<Sink>,
 }
 
 #[derive(Clone, Debug)]
