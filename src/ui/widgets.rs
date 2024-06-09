@@ -27,17 +27,20 @@ impl FeedList {
         Self { feeds }
     }
     pub fn view(&self) -> Element<Message> {
-        Scrollable::new(column![self
-            .feeds
-            .iter()
-            .fold(Column::new().spacing(10), |col, content| {
-                col.push(content.view())
-            })])
-        .direction(Direction::Both {
-            vertical: Properties::default(),
-            horizontal: Properties::default(),
-        })
-        .into()
+        match self.feeds.len() {
+            0 => text("No feeds to show.").into(),
+            _ => Scrollable::new(column![self
+                .feeds
+                .iter()
+                .fold(Column::new().spacing(10), |col, content| {
+                    col.push(content.view())
+                })])
+            .direction(Direction::Both {
+                vertical: Properties::default(),
+                horizontal: Properties::default(),
+            })
+            .into(),
+        }
     }
     pub async fn load_feeds() -> Result<Vec<FeedMeta>, String> {
         let result = get_feed_list_database();
@@ -137,16 +140,19 @@ impl EpisodeList {
         Self { episodes }
     }
     pub fn view(&self) -> Element<Message> {
-        Scrollable::new(column![self
-            .episodes
-            .iter()
-            .fold(Column::new().spacing(10), |col, content| {
-                col.push(content.view())
-            })])
-        .direction(Direction::Vertical(Properties::default()))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+        match self.episodes.len() {
+            0 => text("No episodes to show.").into(),
+            _ => Scrollable::new(column![self
+                .episodes
+                .iter()
+                .fold(Column::new().spacing(10), |col, content| {
+                    col.push(content.view())
+                })])
+            .direction(Direction::Vertical(Properties::default()))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into(),
+        }
     }
 
     pub async fn load_episodes() -> Result<Option<Vec<EpisodeData>>, String> {

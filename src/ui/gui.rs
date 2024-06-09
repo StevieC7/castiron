@@ -12,8 +12,8 @@ use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, Playe
 
 pub struct AppLayout {
     app_view: AppView,
-    feeds: Option<FeedList>,
-    episodes: Option<EpisodeList>,
+    feeds: FeedList,
+    episodes: EpisodeList,
     castiron_config: Option<Config>,
     feed_to_add: String,
     player: Player,
@@ -83,8 +83,8 @@ impl Application for AppLayout {
         (
             Self {
                 app_view: AppView::Feeds,
-                feeds: None,
-                episodes: None,
+                feeds: FeedList::new(Vec::new()),
+                episodes: EpisodeList::new(Vec::new()),
                 castiron_config: None,
                 feed_to_add: String::new(),
                 player: Player::new(None),
@@ -120,7 +120,7 @@ impl Application for AppLayout {
                             None => Feed::new(n.id, n.feed_url.to_owned()),
                         })
                         .collect();
-                    self.feeds = Some(FeedList::new(feed_list));
+                    self.feeds = FeedList::new(feed_list);
                     Command::none()
                 }
             },
@@ -144,7 +144,7 @@ impl Application for AppLayout {
                                     )
                                 })
                                 .collect();
-                            self.episodes = Some(EpisodeList::new(episode_list));
+                            self.episodes = EpisodeList::new(episode_list);
                         }
                         None => {}
                     };
@@ -170,7 +170,7 @@ impl Application for AppLayout {
                                     )
                                 })
                                 .collect();
-                            self.episodes = Some(EpisodeList::new(episode_list));
+                            self.episodes = EpisodeList::new(episode_list);
                         }
                         None => {}
                     };
@@ -313,14 +313,8 @@ impl Application for AppLayout {
         .width(300)
         .align_items(Alignment::Center);
         match self.app_view {
-            AppView::Feeds => match &self.feeds {
-                Some(feeds) => row![column, feeds.view()].into(),
-                None => row![column, text("No feeds to show.")].into(),
-            },
-            AppView::Episodes => match &self.episodes {
-                Some(episodes) => row![column, episodes.view()].into(),
-                None => row![column, text("No episodes to show.")].into(),
-            },
+            AppView::Feeds => row![column, self.feeds.view()].into(),
+            AppView::Episodes => row![column, self.episodes.view()].into(),
             AppView::Config => match &self.castiron_config {
                 Some(config) => row![column, config.view()].into(),
                 None => row![column, text("No config to show.")].into(),
