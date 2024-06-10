@@ -33,7 +33,7 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
     Ok(episodes)
 }
 
-pub fn get_episode_by_guid(id: i32) -> Result<Episode, CustomError> {
+pub fn get_episode_by_id(id: i32) -> Result<Episode, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("SELECT * FROM episodes WHERE id = '{id}'");
     let mut episodes: Vec<Episode> = Vec::new();
@@ -45,6 +45,14 @@ pub fn get_episode_by_guid(id: i32) -> Result<Episode, CustomError> {
         })),
         false => Ok(episodes.remove(0)),
     }
+}
+
+pub fn get_episodes_by_feed_id(feed_id: i32) -> Result<Vec<Episode>, CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("SELECT * FROM episodes WHERE feed_id = {feed_id};");
+    let mut episodes: Vec<Episode> = Vec::new();
+    connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
+    Ok(episodes)
 }
 
 pub fn update_episode_download_status(id: i32, downloaded: bool) -> Result<(), CustomError> {

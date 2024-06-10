@@ -6,8 +6,12 @@ use iced::{executor, Alignment, Application, Command, Element, Length};
 use iced::{time, Subscription, Theme};
 
 use crate::file_handling::config::create_config;
-use crate::file_handling::episodes::{delete_episode_from_fs, get_episode_by_guid};
-use crate::file_handling::feeds::{add_feed_to_database, delete_associated_episodes_and_xml};
+use crate::file_handling::episodes::{
+    delete_episode_from_fs, get_episode_by_id, get_episodes_by_feed_id,
+};
+use crate::file_handling::feeds::{
+    add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
+};
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
@@ -17,6 +21,7 @@ pub struct AppLayout {
     app_view: AppView,
     feeds: FeedList,
     episodes: EpisodeList,
+    episodes_for_show: EpisodeList,
     castiron_config: Option<Config>,
     feed_to_add: String,
     player: Player,
@@ -26,6 +31,7 @@ pub struct AppLayout {
 pub enum AppView {
     Feeds,
     Episodes,
+    EpisodesForShow(i32),
     Config,
     Queue,
 }
@@ -34,6 +40,7 @@ pub enum AppView {
 pub enum Message {
     ViewEpisodes,
     ViewFeeds,
+    ViewEpisodesForShow(i32),
     ViewQueue,
     ViewConfig,
     SaveConfig(Option<CastironConfig>),
@@ -67,16 +74,18 @@ impl AppLayout {
             .queue
             .iter()
             .map(|episode| {
-                let updated_episode = get_episode_by_guid(episode.id);
+                let updated_episode = get_episode_by_id(episode.id);
                 match updated_episode {
                     Ok(u_episode) => Episode::new(
                         u_episode.id,
+                        u_episode.feed_id,
                         u_episode.guid,
                         u_episode.title,
                         u_episode.downloaded,
                     ),
                     Err(_) => Episode::new(
                         episode.id,
+                        episode.feed_id,
                         episode.guid.to_owned(),
                         episode.title.to_owned(),
                         episode.downloaded,
@@ -129,6 +138,7 @@ impl Application for AppLayout {
                 app_view: AppView::Feeds,
                 feeds: FeedList::new(Vec::new()),
                 episodes: EpisodeList::new(Vec::new()),
+                episodes_for_show: EpisodeList::new(Vec::new()),
                 castiron_config: None,
                 feed_to_add: String::new(),
                 player: Player::new(None),
@@ -180,6 +190,7 @@ impl Application for AppLayout {
                                     println!("Episode {} has id {}", n.title, n.id);
                                     Episode::new(
                                         n.id,
+                                        n.feed_id,
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
                                         n.downloaded,
@@ -206,6 +217,7 @@ impl Application for AppLayout {
                                 .map(|n| {
                                     Episode::new(
                                         n.id,
+                                        n.feed_id,
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
                                         n.downloaded,
@@ -232,6 +244,29 @@ impl Application for AppLayout {
             }
             Message::ViewFeeds => {
                 self.app_view = AppView::Feeds;
+                Command::none()
+            }
+            Message::ViewEpisodesForShow(id) => {
+                let episodes_for_show_result = get_episodes_by_feed_id(id);
+                match episodes_for_show_result {
+                    Ok(episodes_for_show) => {
+                        let episode_list = episodes_for_show
+                            .iter()
+                            .map(|n| {
+                                Episode::new(
+                                    n.id,
+                                    n.feed_id,
+                                    n.guid.to_owned(),
+                                    n.title.to_owned(),
+                                    n.downloaded,
+                                )
+                            })
+                            .collect();
+                        self.episodes_for_show = EpisodeList::new(episode_list);
+                    }
+                    Err(_) => {}
+                }
+                self.app_view = AppView::EpisodesForShow(id);
                 Command::none()
             }
             Message::ViewQueue => {
@@ -327,10 +362,11 @@ impl Application for AppLayout {
                         }
                     }
                     PodQueueMessage::AddToQueue(id) => {
-                        let episode = get_episode_by_guid(id);
+                        let episode = get_episode_by_id(id);
                         match episode {
                             Ok(ep) => self.queue.push(Episode::new(
                                 ep.id,
+                                ep.feed_id,
                                 ep.guid,
                                 ep.title,
                                 ep.downloaded,
@@ -401,6 +437,26 @@ impl Application for AppLayout {
         match self.app_view {
             AppView::Feeds => row![column, self.feeds.view()].into(),
             AppView::Episodes => row![column, self.episodes.view()].into(),
+            AppView::EpisodesForShow(id) => {
+                let feed_title = match get_feed_by_id(id) {
+                    Ok(f) => match f.feed_title {
+                        Some(title) => title,
+                        None => String::new(),
+                    },
+                    Err(_) => String::new(),
+                };
+                row![
+                    column,
+                    column![
+                        row![
+                            text(feed_title),
+                            button("Back").on_press(Message::ViewFeeds)
+                        ],
+                        self.episodes_for_show.view()
+                    ]
+                ]
+                .into()
+            }
             AppView::Config => match &self.castiron_config {
                 Some(config) => row![column, config.view()].into(),
                 None => row![column, text("No config to show.")].into(),

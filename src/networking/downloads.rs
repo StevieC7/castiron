@@ -9,7 +9,7 @@ use std::{
 use crate::{
     file_handling::{
         episodes::{
-            add_episode_to_database, get_episode_by_guid, get_episode_list_database,
+            add_episode_to_database, get_episode_by_id, get_episode_list_database,
             update_episode_download_status,
         },
         feeds::{get_feed_list_database, load_feed_xml, update_feed_title},
@@ -113,7 +113,7 @@ async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomEr
 }
 
 pub async fn download_episode_by_guid(id: i32) -> Result<String, CustomError> {
-    let episode = get_episode_by_guid(id)?;
+    let episode = get_episode_by_id(id)?;
     println!("DEBUG: retrieved {:?}", episode);
     download_episode(episode.url.as_str(), episode.file_name.as_str()).await?;
     update_episode_download_status(id, true)?;

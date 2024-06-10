@@ -4,7 +4,7 @@ use std::io::BufReader;
 // use std::ops::Range;
 
 use crate::file_handling::config::{create_config, read_config};
-use crate::file_handling::episodes::{get_episode_by_guid, get_episode_list_database};
+use crate::file_handling::episodes::{get_episode_by_id, get_episode_list_database};
 use crate::file_handling::feeds::get_feed_list_database;
 use crate::networking::downloads::{download_episode_by_guid, sync_episode_list};
 use crate::types::config::CastironConfig;
@@ -66,7 +66,8 @@ impl Feed {
     pub fn view(&self) -> Element<Message> {
         container(row!(
             text(self.feed_title.to_owned()),
-            button(text("Unfollow")).on_press(Message::UnfollowFeed(self.id))
+            button(text("Unfollow")).on_press(Message::UnfollowFeed(self.id)),
+            button(text("View Episodes")).on_press(Message::ViewEpisodesForShow(self.id))
         ))
         .style(|theme: &Theme| {
             let palette = theme.extended_palette();
@@ -132,7 +133,7 @@ impl Config {
 }
 
 pub struct EpisodeList {
-    episodes: Vec<Episode>,
+    pub episodes: Vec<Episode>,
 }
 
 impl EpisodeList {
@@ -178,15 +179,17 @@ impl EpisodeList {
 
 pub struct Episode {
     pub id: i32,
+    pub feed_id: i32,
     pub guid: String,
     pub title: String,
     pub downloaded: bool,
 }
 
 impl Episode {
-    pub fn new(id: i32, guid: String, title: String, downloaded: bool) -> Self {
+    pub fn new(id: i32, feed_id: i32, guid: String, title: String, downloaded: bool) -> Self {
         Self {
             id,
+            feed_id,
             guid,
             title,
             downloaded,
@@ -257,7 +260,7 @@ impl Player {
     pub fn new(id: Option<i32>) -> Self {
         match id {
             Some(id) => {
-                if let Ok(episode) = get_episode_by_guid(id) {
+                if let Ok(episode) = get_episode_by_id(id) {
                     if let Ok((stream, stream_handle)) = OutputStream::try_default() {
                         match Sink::try_new(&stream_handle) {
                             Ok(sink) => {
@@ -344,7 +347,7 @@ impl Player {
     pub fn view(&self) -> Element<Message> {
         let title: Text<Theme, Renderer> = match self.id {
             Some(id) => {
-                let episode = get_episode_by_guid(id);
+                let episode = get_episode_by_id(id);
                 match episode {
                     Ok(episode) => text(format!("{}", episode.title)),
                     Err(_) => text("Not Playing"),

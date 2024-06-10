@@ -80,6 +80,55 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
     Ok(feeds)
 }
 
+pub fn get_feed_by_id(id: i32) -> Result<FeedMeta, CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("SELECT * FROM feeds WHERE id = {id} LIMIT 1;");
+    let mut result_tuple: FeedMeta = FeedMeta {
+        id: 0,
+        feed_url: String::new(),
+        xml_file_path: None,
+        feed_title: None,
+    };
+    connection.iterate(query, |n| {
+        let id_kv_tuple = n.iter().find(|val| val.0 == "id");
+        match id_kv_tuple {
+            Some(wrapped_id) => match wrapped_id.1 {
+                Some(id) => result_tuple.id = id.to_string().parse().unwrap(),
+                None => (),
+            },
+            None => (),
+        }
+        let url_kv_tuple = n.iter().find(|val| val.0 == "url");
+        match url_kv_tuple {
+            Some(wrapped_url) => match wrapped_url.1 {
+                Some(url) => result_tuple.feed_url = url.to_string(),
+                None => (),
+            },
+            None => (),
+        }
+        let xml_kv_tuple = n.iter().find(|val| val.0 == "xml_file_path");
+        match xml_kv_tuple {
+            Some(wrapped_xml) => match wrapped_xml.1 {
+                Some(xml) => result_tuple.xml_file_path = Some(xml.to_string()),
+                None => (),
+            },
+            None => (),
+        }
+        let title_kv_pair = n.iter().find(|val| val.0 == "feed_title");
+        match title_kv_pair {
+            Some(title_tuple) => match title_tuple.1 {
+                Some(title) => {
+                    result_tuple.feed_title = Some(title.to_string());
+                }
+                None => (),
+            },
+            None => (),
+        }
+        true
+    })?;
+    Ok(result_tuple)
+}
+
 pub fn delete_associated_episodes_and_xml(id: i32) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("SELECT xml_file_path FROM feeds WHERE id = {id};");
