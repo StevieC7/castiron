@@ -57,17 +57,29 @@ pub enum Message {
 pub enum PodQueueMessage {
     RemoveFromQueue(i32),
     AddToQueue(String),
+    MoveToPosition(usize, usize),
 }
 
 impl AppLayout {
     pub fn view_queue(&self) -> Element<Message> {
+        let mut col_len: usize = 0;
         self.queue
             .iter()
             .fold(Column::new().spacing(10), |col, content| {
+                col_len = col_len + 1;
                 col.push(row!(
                     content.view(),
                     button(text("Rm from queue")).on_press(Message::PodQueueMessage(
                         PodQueueMessage::RemoveFromQueue(content.id)
+                    )),
+                    button(text("Move Up")).on_press(Message::PodQueueMessage(
+                        PodQueueMessage::MoveToPosition(
+                            col_len.wrapping_sub(1),
+                            col_len.wrapping_sub(2)
+                        )
+                    )),
+                    button(text("Move Down")).on_press(Message::PodQueueMessage(
+                        PodQueueMessage::MoveToPosition(col_len.wrapping_sub(1), col_len)
                     ))
                 ))
             })
@@ -281,6 +293,12 @@ impl Application for AppLayout {
                                 ep.downloaded,
                             )),
                             Err(_) => (),
+                        }
+                    }
+                    PodQueueMessage::MoveToPosition(original_index, new_index) => {
+                        match new_index < self.queue.len() {
+                            true => self.queue.swap(original_index, new_index),
+                            false => (),
                         }
                     }
                 }
