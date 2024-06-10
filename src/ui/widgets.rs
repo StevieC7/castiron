@@ -195,16 +195,16 @@ impl Episode {
     pub fn view(&self) -> Element<Message> {
         let action_container: Row<Message, Theme, Renderer> = match self.downloaded {
             true => row!(
-                button(text("Play")).on_press(Message::PlayEpisode(self.guid.to_owned())),
-                button(text("Delete")).on_press(Message::DeleteEpisode(self.guid.to_owned())),
+                button(text("Play")).on_press(Message::PlayEpisode(self.id)),
+                button(text("Delete")).on_press(Message::DeleteEpisode(self.id)),
                 button(text("Queue")).on_press(Message::PodQueueMessage(
-                    PodQueueMessage::AddToQueue(self.guid.to_owned())
+                    PodQueueMessage::AddToQueue(self.id)
                 ))
             ),
             false => row!(
-                button(text("Download")).on_press(Message::DownloadEpisode(self.guid.to_owned())),
+                button(text("Download")).on_press(Message::DownloadEpisode(self.id)),
                 button(text("Queue")).on_press(Message::PodQueueMessage(
-                    PodQueueMessage::AddToQueue(self.guid.to_owned())
+                    PodQueueMessage::AddToQueue(self.id)
                 ))
             ),
         };
@@ -232,8 +232,8 @@ impl Episode {
         .into()
     }
 
-    pub async fn download_single_episode(guid: String) -> Result<(), String> {
-        match download_episode_by_guid(guid).await {
+    pub async fn download_single_episode(id: i32) -> Result<(), String> {
+        match download_episode_by_guid(id).await {
             Ok(_) => Ok(()),
             Err(e) => Err(String::from(format!("Error downloading episode: {:?}", e))),
         }
@@ -242,7 +242,7 @@ impl Episode {
 
 #[allow(dead_code)] // The stream isn't called anywhere, but it is necessary to keep the sink alive
 pub struct Player {
-    pub guid: Option<String>,
+    pub id: Option<i32>,
     stream: Option<OutputStream>,
     pub sink: Option<Sink>,
 }
@@ -254,10 +254,10 @@ pub enum PlayerMessage {
 }
 
 impl Player {
-    pub fn new(guid: Option<String>) -> Self {
-        match guid {
-            Some(guid) => {
-                if let Ok(episode) = get_episode_by_guid(&guid) {
+    pub fn new(id: Option<i32>) -> Self {
+        match id {
+            Some(id) => {
+                if let Ok(episode) = get_episode_by_guid(id) {
                     if let Ok((stream, stream_handle)) = OutputStream::try_default() {
                         match Sink::try_new(&stream_handle) {
                             Ok(sink) => {
@@ -271,7 +271,7 @@ impl Player {
                                             sink.append(source);
                                             sink.play();
                                             Self {
-                                                guid: Some(episode.guid),
+                                                id: Some(episode.id),
                                                 stream: Some(stream),
                                                 sink: Some(sink),
                                             }
@@ -279,7 +279,7 @@ impl Player {
                                         Err(e) => {
                                             eprintln!("{:?}", e);
                                             Self {
-                                                guid: None,
+                                                id: None,
                                                 stream: None,
                                                 sink: None,
                                             }
@@ -288,7 +288,7 @@ impl Player {
                                 } else {
                                     eprintln!("failed to open file {}", episode.file_name);
                                     Self {
-                                        guid: None,
+                                        id: None,
                                         stream: None,
                                         sink: None,
                                     }
@@ -297,7 +297,7 @@ impl Player {
                             Err(_) => {
                                 eprintln!("failed to create Sink");
                                 Self {
-                                    guid: None,
+                                    id: None,
                                     stream: None,
                                     sink: None,
                                 }
@@ -306,7 +306,7 @@ impl Player {
                     } else {
                         eprintln!("failed to create OutputStream");
                         Self {
-                            guid: None,
+                            id: None,
                             stream: None,
                             sink: None,
                         }
@@ -314,14 +314,14 @@ impl Player {
                 } else {
                     eprintln!("failed to get episode from db");
                     Self {
-                        guid: None,
+                        id: None,
                         stream: None,
                         sink: None,
                     }
                 }
             }
             None => Self {
-                guid: None,
+                id: None,
                 stream: None,
                 sink: None,
             },
@@ -342,9 +342,9 @@ impl Player {
     }
 
     pub fn view(&self) -> Element<Message> {
-        let title: Text<Theme, Renderer> = match &self.guid {
-            Some(guid) => {
-                let episode = get_episode_by_guid(&guid);
+        let title: Text<Theme, Renderer> = match self.id {
+            Some(id) => {
+                let episode = get_episode_by_guid(id);
                 match episode {
                     Ok(episode) => text(format!("{}", episode.title)),
                     Err(_) => text("Not Playing"),

@@ -32,32 +32,32 @@ pub enum AppView {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    FeedsLoaded(Result<Vec<FeedMeta>, String>),
-    EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
-    EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
-    ConfigLoaded(Result<CastironConfig, String>),
     ViewEpisodes,
     ViewFeeds,
     ViewQueue,
     ViewConfig,
     SaveConfig(Option<CastironConfig>),
     AddFeed,
-    FeedToAddUpdated(String),
-    SyncEpisodes,
-    DownloadEpisode(String),
-    DeleteEpisode(String),
-    EpisodeDownloaded(Result<(), String>),
-    PlayEpisode(String),
-    PlayerMessage(PlayerMessage),
-    PlayerProgressed,
-    PodQueueMessage(PodQueueMessage),
     UnfollowFeed(i32),
+    SyncEpisodes,
+    DownloadEpisode(i32),
+    PlayEpisode(i32),
+    DeleteEpisode(i32),
+    ConfigLoaded(Result<CastironConfig, String>),
+    FeedsLoaded(Result<Vec<FeedMeta>, String>),
+    EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
+    EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
+    EpisodeDownloaded(Result<(), String>),
+    FeedToAddUpdated(String),
+    PlayerProgressed,
+    PlayerMessage(PlayerMessage),
+    PodQueueMessage(PodQueueMessage),
 }
 
 #[derive(Debug, Clone)]
 pub enum PodQueueMessage {
     RemoveFromQueue(i32),
-    AddToQueue(String),
+    AddToQueue(i32),
     MoveToPosition(usize, usize),
 }
 
@@ -67,7 +67,7 @@ impl AppLayout {
             .queue
             .iter()
             .map(|episode| {
-                let updated_episode = get_episode_by_guid(&episode.guid);
+                let updated_episode = get_episode_by_guid(episode.id);
                 match updated_episode {
                     Ok(u_episode) => Episode::new(
                         u_episode.id,
@@ -278,9 +278,16 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
-            Message::PlayEpisode(guid) => {
-                self.player = Player::new(Some(guid));
-                // TODO: handle checking for episode in queue and, if found, moving it up to the front of the queue
+            Message::PlayEpisode(id) => {
+                self.player = Player::new(Some(id));
+                // TODO: handle checking for episode in queue and, if found, removing it from queue
+                let found_idx = self.queue.iter().position(|episode| episode.id == id);
+                match found_idx {
+                    Some(idx) => {
+                        self.queue.remove(idx);
+                    }
+                    None => {}
+                }
                 Command::none()
             }
             Message::PlayerMessage(message) => {
@@ -319,8 +326,8 @@ impl Application for AppLayout {
                             None => {}
                         }
                     }
-                    PodQueueMessage::AddToQueue(guid) => {
-                        let episode = get_episode_by_guid(&guid);
+                    PodQueueMessage::AddToQueue(id) => {
+                        let episode = get_episode_by_guid(id);
                         match episode {
                             Ok(ep) => self.queue.push(Episode::new(
                                 ep.id,
@@ -344,12 +351,12 @@ impl Application for AppLayout {
                 match &self.player.sink {
                     Some(sink) => match sink.empty() {
                         true => {
-                            self.queue.remove(0);
-                            let guid = match self.queue.get(0) {
-                                Some(episode) => episode.guid.to_owned(),
-                                None => String::new(),
+                            let id = match self.queue.get(0) {
+                                Some(episode) => episode.id,
+                                None => 0,
                             };
-                            self.player = Player::new(Some(guid));
+                            self.player = Player::new(Some(id));
+                            self.queue.remove(0);
                         }
                         false => {}
                     },

@@ -112,10 +112,10 @@ async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomEr
     Ok(String::from("Download successful"))
 }
 
-pub async fn download_episode_by_guid(guid: String) -> Result<String, CustomError> {
-    let episode = get_episode_by_guid(&guid)?;
+pub async fn download_episode_by_guid(id: i32) -> Result<String, CustomError> {
+    let episode = get_episode_by_guid(id)?;
     println!("DEBUG: retrieved {:?}", episode);
     download_episode(episode.url.as_str(), episode.file_name.as_str()).await?;
-    update_episode_download_status(&guid, true)?;
+    update_episode_download_status(id, true)?;
     Ok(String::from("Download successful."))
 }

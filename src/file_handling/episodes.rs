@@ -33,9 +33,9 @@ pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
     Ok(episodes)
 }
 
-pub fn get_episode_by_guid(guid: &String) -> Result<Episode, CustomError> {
+pub fn get_episode_by_guid(id: i32) -> Result<Episode, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("SELECT * FROM episodes WHERE guid = '{guid}'");
+    let query = format!("SELECT * FROM episodes WHERE id = '{id}'");
     let mut episodes: Vec<Episode> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
     match episodes.is_empty() {
@@ -47,16 +47,16 @@ pub fn get_episode_by_guid(guid: &String) -> Result<Episode, CustomError> {
     }
 }
 
-pub fn update_episode_download_status(guid: &String, downloaded: bool) -> Result<(), CustomError> {
+pub fn update_episode_download_status(id: i32, downloaded: bool) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("UPDATE episodes SET downloaded = {downloaded} WHERE guid = '{guid}';");
+    let query = format!("UPDATE episodes SET downloaded = {downloaded} WHERE id = '{id}';");
     connection.execute(query)?;
     Ok(())
 }
 
-pub fn delete_episode_from_fs(guid: String) -> Result<(), CustomError> {
+pub fn delete_episode_from_fs(id: i32) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("SELECT file_name FROM episodes WHERE guid = '{guid}'");
+    let query = format!("SELECT file_name FROM episodes WHERE id = '{id}'");
     let mut delete_file_name = String::new();
     connection.iterate(query, |n| {
         let result_tuple = n.get(0);
@@ -72,7 +72,7 @@ pub fn delete_episode_from_fs(guid: String) -> Result<(), CustomError> {
         true
     })?;
     remove_file(Path::new(format!("./episodes/{delete_file_name}").as_str()))?;
-    update_episode_download_status(&guid, false)?;
+    update_episode_download_status(id, false)?;
     Ok(())
 }
 
