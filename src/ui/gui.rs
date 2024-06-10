@@ -6,7 +6,7 @@ use iced::{time, Subscription, Theme};
 
 use crate::file_handling::config::create_config;
 use crate::file_handling::episodes::{delete_episode_from_fs, get_episode_by_guid};
-use crate::file_handling::feeds::{add_feed_to_database, delete_feed_from_database_only};
+use crate::file_handling::feeds::{add_feed_to_database, delete_associated_episodes_and_xml};
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
@@ -235,6 +235,7 @@ impl Application for AppLayout {
             },
             Message::PlayEpisode(guid) => {
                 self.player = Player::new(Some(guid));
+                // TODO: handle checking for episode in queue and, if found, moving it up to the front of the queue
                 Command::none()
             }
             Message::PlayerMessage(message) => {
@@ -248,8 +249,11 @@ impl Application for AppLayout {
                     Command::none()
                 }
             },
-            Message::UnfollowFeed(id) => match delete_feed_from_database_only(id) {
-                Ok(_) => Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+            Message::UnfollowFeed(id) => match delete_associated_episodes_and_xml(id) {
+                Ok(_) => Command::batch([
+                    Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+                    Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
+                ]),
                 Err(e) => {
                     eprintln!("Error deleting feed: {:?}", e);
                     Command::none()

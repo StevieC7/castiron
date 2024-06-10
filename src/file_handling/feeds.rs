@@ -1,6 +1,10 @@
 use crate::types::{errors::CustomError, feeds::FeedMeta};
 use sqlite::open;
-use std::{fs::read_to_string, io::Error as IOError, path::Path};
+use std::{
+    fs::{read_to_string, remove_file},
+    io::Error as IOError,
+    path::Path,
+};
 
 pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
@@ -83,8 +87,26 @@ pub fn delete_feed_from_database_only(id: i32) -> Result<(), CustomError> {
     Ok(())
 }
 
-pub fn _delete_associated_episodes_and_xml(_id: i32) {
-    todo!()
+pub fn delete_associated_episodes_and_xml(id: i32) -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("SELECT xml_file_path FROM feeds WHERE id = {id};");
+    let mut xml_file_path = String::new();
+    connection.iterate(query, |n| {
+        match n.iter().nth(0) {
+            Some(wrapped_xml_file_path) => match wrapped_xml_file_path.1 {
+                Some(file_path) => xml_file_path = file_path.to_string(),
+                None => (),
+            },
+            None => (),
+        }
+        true
+    })?;
+    remove_file(Path::new(format!("{xml_file_path}").as_str()))?;
+    let query = format!("DELETE FROM feeds WHERE id = {id};");
+    connection.execute(query)?;
+    let query = format!("DELETE FROM episodes WHERE feed_id = {id};");
+    connection.execute(query)?;
+    Ok(())
 }
 
 pub fn load_feed_xml(xml_file_path: String) -> Result<String, IOError> {

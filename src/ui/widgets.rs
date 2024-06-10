@@ -242,7 +242,7 @@ impl Episode {
 
 #[allow(dead_code)] // The stream isn't called anywhere, but it is necessary to keep the sink alive
 pub struct Player {
-    guid: Option<String>,
+    pub guid: Option<String>,
     stream: Option<OutputStream>,
     pub sink: Option<Sink>,
 }
