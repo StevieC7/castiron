@@ -80,13 +80,6 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
     Ok(feeds)
 }
 
-pub fn delete_feed_from_database_only(id: i32) -> Result<(), CustomError> {
-    let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("DELETE FROM feeds WHERE id = {id};");
-    connection.execute(query)?;
-    Ok(())
-}
-
 pub fn delete_associated_episodes_and_xml(id: i32) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("SELECT xml_file_path FROM feeds WHERE id = {id};");
