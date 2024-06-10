@@ -179,8 +179,8 @@ impl EpisodeList {
 pub struct Episode {
     pub id: i32,
     pub guid: String,
-    title: String,
-    downloaded: bool,
+    pub title: String,
+    pub downloaded: bool,
 }
 
 impl Episode {

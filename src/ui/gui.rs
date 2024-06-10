@@ -1,7 +1,8 @@
 use std::time::Duration;
 
-use iced::widget::{button, column, row, text, text_input, vertical_space, Column};
-use iced::{executor, Alignment, Application, Command, Element};
+use iced::widget::scrollable::{Direction, Properties};
+use iced::widget::{button, column, row, text, text_input, vertical_space, Column, Scrollable};
+use iced::{executor, Alignment, Application, Command, Element, Length};
 use iced::{time, Subscription, Theme};
 
 use crate::file_handling::config::create_config;
@@ -61,9 +62,34 @@ pub enum PodQueueMessage {
 }
 
 impl AppLayout {
+    pub fn update_queue(&mut self) {
+        let new_queue: Vec<Episode> = self
+            .queue
+            .iter()
+            .map(|episode| {
+                let updated_episode = get_episode_by_guid(&episode.guid);
+                match updated_episode {
+                    Ok(u_episode) => Episode::new(
+                        u_episode.id,
+                        u_episode.guid,
+                        u_episode.title,
+                        u_episode.downloaded,
+                    ),
+                    Err(_) => Episode::new(
+                        episode.id,
+                        episode.guid.to_owned(),
+                        episode.title.to_owned(),
+                        episode.downloaded,
+                    ),
+                }
+            })
+            .collect();
+        self.queue = new_queue;
+    }
     pub fn view_queue(&self) -> Element<Message> {
         let mut col_len: usize = 0;
-        self.queue
+        let column = self
+            .queue
             .iter()
             .fold(Column::new().spacing(10), |col, content| {
                 col_len = col_len + 1;
@@ -82,7 +108,11 @@ impl AppLayout {
                         PodQueueMessage::MoveToPosition(col_len.wrapping_sub(1), col_len)
                     ))
                 ))
-            })
+            });
+        Scrollable::new(column)
+            .direction(Direction::Vertical(Properties::default()))
+            .width(Length::Fill)
+            .height(Length::Fill)
             .into()
     }
 }
@@ -239,7 +269,10 @@ impl Application for AppLayout {
                 Message::EpisodeDownloaded,
             ),
             Message::EpisodeDownloaded(result) => match result {
-                Ok(_) => Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
+                Ok(_) => {
+                    self.update_queue();
+                    Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded)
+                }
                 Err(e) => {
                     println!("Error downloading episode: {e}");
                     Command::none()
@@ -255,7 +288,10 @@ impl Application for AppLayout {
                 Command::none()
             }
             Message::DeleteEpisode(guid) => match delete_episode_from_fs(guid) {
-                Ok(_) => Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
+                Ok(_) => {
+                    self.update_queue();
+                    Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded)
+                }
                 Err(e) => {
                     eprintln!("Error deleting episode: {:?}", e);
                     Command::none()
