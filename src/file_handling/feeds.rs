@@ -104,8 +104,19 @@ pub fn delete_associated_episodes_and_xml(id: i32) -> Result<(), CustomError> {
     remove_file(Path::new(format!("{xml_file_path}").as_str()))?;
     let query = format!("DELETE FROM feeds WHERE id = {id};");
     connection.execute(query)?;
-    let query = format!("DELETE FROM episodes WHERE feed_id = {id};");
-    connection.execute(query)?;
+    let query = format!("DELETE FROM episodes WHERE feed_id = {id} RETURNING file_name;");
+    connection.iterate(query, |row| {
+        match row.iter().nth(0) {
+            Some(wrapped_file_name) => match wrapped_file_name.1 {
+                Some(file_name) => {
+                    remove_file(Path::new(format!("./episodes/{file_name}").as_str())).unwrap_or(())
+                }
+                None => (),
+            },
+            None => (),
+        };
+        true
+    })?;
     Ok(())
 }
 
