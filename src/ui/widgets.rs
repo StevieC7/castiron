@@ -1,3 +1,4 @@
+use iced::alignment::Horizontal;
 use rodio::Decoder;
 use std::fs::File;
 use std::io::BufReader;
@@ -12,8 +13,11 @@ use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
 use super::gui::{Message, PodQueueMessage};
+use super::styles::{style_main_area, style_player_area};
 use iced::widget::scrollable::Properties;
-use iced::widget::{button, column, container, row, text, Column, Row, Scrollable, Text, Toggler};
+use iced::widget::{
+    button, column, container, pick_list, row, text, Column, Row, Scrollable, Text, Toggler,
+};
 use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
@@ -91,30 +95,31 @@ impl Feed {
 
 #[derive(Clone)]
 pub struct Config {
-    values: CastironConfig,
+    pub values: CastironConfig,
+    theme: Theme,
 }
 
 impl Config {
-    pub fn new(values: CastironConfig) -> Self {
-        Self { values }
+    pub fn new(values: CastironConfig, theme: Theme) -> Self {
+        Self { values, theme }
     }
 
     pub fn view(&self) -> Element<Message> {
-        let vals = self.values.to_owned();
-        let column = Column::new();
-        column
-            .push(Toggler::new(
+        column![
+            Toggler::new(
                 String::from("Automatically download new episodes?"),
-                vals.auto_dl_new,
+                self.values.auto_dl_new,
                 move |n| {
                     Message::SaveConfig(Some(CastironConfig {
                         auto_dl_new: n,
-                        auto_rm_after_listen: vals.auto_rm_after_listen,
-                        dark_mode: vals.dark_mode,
+                        auto_rm_after_listen: self.values.auto_rm_after_listen,
+                        theme: self.values.theme.to_owned(),
                     }))
-                },
-            ))
-            .into()
+                }
+            ),
+            pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged).width(Length::Fill)
+        ]
+        .into()
     }
 
     pub async fn load_config() -> Result<CastironConfig, String> {
@@ -143,12 +148,15 @@ impl EpisodeList {
     pub fn view(&self) -> Element<Message> {
         match self.episodes.len() {
             0 => text("No episodes to show.").into(),
-            _ => Scrollable::new(column![self
-                .episodes
-                .iter()
-                .fold(Column::new().spacing(10), |col, content| {
-                    col.push(content.view())
-                })])
+            _ => Scrollable::new(
+                container(column![self
+                    .episodes
+                    .iter()
+                    .fold(Column::new().spacing(10), |col, content| {
+                        col.push(content.view())
+                    })])
+                .style(style_main_area),
+            )
             .direction(Direction::Vertical(Properties::default()))
             .width(Length::Fill)
             .height(Length::Fill)
@@ -355,13 +363,18 @@ impl Player {
             }
             None => text("Not Playing"),
         };
-        container(column!(
-            title,
+        container(
             row!(
+                title,
                 button(text("Play")).on_press(Message::PlayerMessage(PlayerMessage::Play)),
                 button(text("Pause")).on_press(Message::PlayerMessage(PlayerMessage::Pause))
             )
-        ))
+            .spacing(10),
+        )
+        .width(Length::Fill)
+        .padding(20)
+        .style(style_player_area)
+        .align_x(Horizontal::Center)
         .into()
     }
 }

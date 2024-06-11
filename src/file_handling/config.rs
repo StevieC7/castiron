@@ -6,6 +6,7 @@ use std::{
 
 use crate::types::config::CastironConfig;
 use crate::types::errors::CustomError;
+use iced::Theme;
 use serde_json::{from_reader, to_writer};
 
 pub fn read_config() -> Result<CastironConfig, CustomError> {
@@ -28,7 +29,7 @@ pub fn create_config(config: Option<CastironConfig>) -> Result<CastironConfig, C
             let conf = CastironConfig {
                 auto_dl_new: true,
                 auto_rm_after_listen: true,
-                dark_mode: false,
+                theme: Theme::default().to_string(),
             };
             let config_file_path = Path::new("./castiron_config.json");
             let config_file = File::create(config_file_path)?;
@@ -49,7 +50,7 @@ mod tests {
         let test_config_value = CastironConfig {
             auto_dl_new: false,
             auto_rm_after_listen: false,
-            dark_mode: false,
+            theme: Theme::default().to_string(),
         };
         assert!(create_config(Some(test_config_value)).is_ok())
     }

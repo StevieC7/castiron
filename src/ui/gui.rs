@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use iced::widget::scrollable::{Direction, Properties};
-use iced::widget::{button, column, row, text, text_input, vertical_space, Column, Scrollable};
+use iced::widget::{
+    button, column, container, row, text, text_input, vertical_space, Column, Scrollable,
+};
 use iced::{executor, Alignment, Application, Command, Element, Length};
 use iced::{time, Subscription, Theme};
 
@@ -15,6 +17,7 @@ use crate::file_handling::feeds::{
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
+use super::styles::style_main_area;
 use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
 
 pub struct AppLayout {
@@ -26,6 +29,7 @@ pub struct AppLayout {
     feed_to_add: String,
     player: Player,
     queue: Vec<Episode>,
+    theme: Theme,
 }
 
 pub enum AppView {
@@ -59,6 +63,7 @@ pub enum Message {
     PlayerProgressed,
     PlayerMessage(PlayerMessage),
     PodQueueMessage(PodQueueMessage),
+    ThemeChanged(Theme),
 }
 
 #[derive(Debug, Clone)]
@@ -143,6 +148,7 @@ impl Application for AppLayout {
                 feed_to_add: String::new(),
                 player: Player::new(None),
                 queue: Vec::new(),
+                theme: Theme::default(),
             },
             Command::batch([
                 Command::perform(Config::load_config(), Message::ConfigLoaded),
@@ -157,7 +163,7 @@ impl Application for AppLayout {
     }
 
     fn theme(&self) -> Theme {
-        Theme::CatppuccinMocha
+        self.theme.clone()
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -234,7 +240,7 @@ impl Application for AppLayout {
             Message::ConfigLoaded(config) => match config {
                 Err(_) => Command::none(),
                 Ok(data) => {
-                    self.castiron_config = Some(Config::new(data));
+                    self.castiron_config = Some(Config::new(data, self.theme.clone()));
                     Command::none()
                 }
             },
@@ -400,6 +406,17 @@ impl Application for AppLayout {
                 }
                 Command::none()
             }
+            Message::ThemeChanged(theme) => {
+                self.theme = theme;
+                match &self.castiron_config {
+                    Some(config) => {
+                        self.castiron_config =
+                            Some(Config::new(config.values.clone(), self.theme.clone()))
+                    }
+                    None => (),
+                }
+                Command::none()
+            }
         }
     }
 
@@ -411,31 +428,37 @@ impl Application for AppLayout {
         let column = column![
             button(text("Feeds"))
                 .on_press(Message::ViewFeeds)
-                .width(200),
+                .width(Length::Fill),
             button(text("Episodes"))
                 .on_press(Message::ViewEpisodes)
-                .width(200),
+                .width(Length::Fill),
             button(text("Queue"))
                 .on_press(Message::ViewQueue)
-                .width(200),
+                .width(Length::Fill),
             button(text("Config"))
                 .on_press(Message::ViewConfig)
-                .width(200),
+                .width(Length::Fill),
             text_input("add feed", self.feed_to_add.as_str())
                 .on_input(Message::FeedToAddUpdated)
-                .width(200),
-            button(text("Add")).on_press(Message::AddFeed).width(200),
+                .width(Length::Fill),
+            button(text("Add"))
+                .on_press(Message::AddFeed)
+                .width(Length::Fill),
             button(text("Sync"))
                 .on_press(Message::SyncEpisodes)
-                .width(200),
+                .width(Length::Fill),
             vertical_space(),
-            self.player.view()
         ]
-        .padding(20)
         .width(300)
         .align_items(Alignment::Center);
         match self.app_view {
-            AppView::Feeds => row![column, self.feeds.view()].into(),
+            AppView::Feeds => column![
+                container(row![column, self.feeds.view()])
+                    .width(Length::Fill)
+                    .style(style_main_area),
+                self.player.view()
+            ]
+            .into(),
             AppView::Episodes => row![column, self.episodes.view()].into(),
             AppView::EpisodesForShow(id) => {
                 let feed_title = match get_feed_by_id(id) {
