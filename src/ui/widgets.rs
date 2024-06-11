@@ -16,8 +16,7 @@ use super::gui::{AppView, Message, PodQueueMessage};
 use super::styles::{style_list_item, style_main_area, style_player_area};
 use iced::widget::scrollable::Properties;
 use iced::widget::{
-    button, column, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable,
-    Text,
+    button, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable, Text,
 };
 use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{theme, Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};

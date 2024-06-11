@@ -15,6 +15,9 @@ use crate::file_handling::episodes::{
 use crate::file_handling::feeds::{
     add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
 };
+use crate::file_handling::setup::{
+    create_episodes_directory_if_not_existing, create_shows_directory_if_not_existing,
+};
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
@@ -54,6 +57,7 @@ pub enum Message {
     DownloadEpisode(i32),
     PlayEpisode(i32),
     DeleteEpisode(i32),
+    SetupCompleted(Result<(), String>),
     ConfigLoaded(Result<CastironConfig, String>),
     FeedsLoaded(Result<Vec<FeedMeta>, String>),
     EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
@@ -172,6 +176,14 @@ impl Application for AppLayout {
                 theme: Theme::default(),
             },
             Command::batch([
+                Command::perform(
+                    create_shows_directory_if_not_existing(),
+                    Message::SetupCompleted,
+                ),
+                Command::perform(
+                    create_episodes_directory_if_not_existing(),
+                    Message::SetupCompleted,
+                ),
                 Command::perform(Config::load_config(), Message::ConfigLoaded),
                 Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
                 Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
@@ -446,6 +458,7 @@ impl Application for AppLayout {
                 }
                 Command::none()
             }
+            Message::SetupCompleted(_) => Command::none(),
         }
     }
 
