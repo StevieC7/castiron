@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use iced::alignment::Horizontal;
+use iced::alignment::{Horizontal, Vertical};
 use iced::widget::scrollable::{Direction, Properties};
 use iced::widget::{
     button, column, container, row, text, text_input, vertical_space, Column, Scrollable,
 };
-use iced::{executor, Alignment, Application, Command, Element, Length};
+use iced::{executor, theme, Alignment, Application, Command, Element, Length};
 use iced::{time, Subscription, Theme};
 
 use crate::file_handling::config::{convert_theme_string_to_enum, create_config};
@@ -48,7 +48,6 @@ pub enum Message {
     ViewEpisodesForShow(i32),
     ViewQueue,
     ViewConfig,
-    SaveConfig(Option<CastironConfig>),
     AddFeed,
     UnfollowFeed(i32),
     SyncEpisodes,
@@ -88,6 +87,7 @@ impl AppLayout {
                         u_episode.guid,
                         u_episode.title,
                         u_episode.downloaded,
+                        AppView::Queue,
                     ),
                     Err(_) => Episode::new(
                         episode.id,
@@ -95,6 +95,7 @@ impl AppLayout {
                         episode.guid.to_owned(),
                         episode.title.to_owned(),
                         episode.downloaded,
+                        AppView::Queue,
                     ),
                 }
             })
@@ -108,21 +109,40 @@ impl AppLayout {
             .iter()
             .fold(Column::new().spacing(10), |col, content| {
                 col_len = col_len + 1;
-                col.push(row!(
-                    content.view(),
-                    button(text("Rm from queue")).on_press(Message::PodQueueMessage(
-                        PodQueueMessage::RemoveFromQueue(content.id)
-                    )),
-                    button(text("Move Up")).on_press(Message::PodQueueMessage(
-                        PodQueueMessage::MoveToPosition(
-                            col_len.wrapping_sub(1),
-                            col_len.wrapping_sub(2)
-                        )
-                    )),
-                    button(text("Move Down")).on_press(Message::PodQueueMessage(
-                        PodQueueMessage::MoveToPosition(col_len.wrapping_sub(1), col_len)
-                    ))
-                ))
+                col.push(
+                    row![
+                        content.view(),
+                        container(column![
+                            button(text("Move Up"))
+                                .on_press(Message::PodQueueMessage(
+                                    PodQueueMessage::MoveToPosition(
+                                        col_len.wrapping_sub(1),
+                                        col_len.wrapping_sub(2)
+                                    )
+                                ))
+                                .width(100)
+                                .style(theme::Button::Secondary),
+                            button(text("X"))
+                                .on_press(Message::PodQueueMessage(
+                                    PodQueueMessage::RemoveFromQueue(content.id)
+                                ))
+                                .width(100)
+                                .style(theme::Button::Secondary),
+                            button(text("Move Down"))
+                                .on_press(Message::PodQueueMessage(
+                                    PodQueueMessage::MoveToPosition(
+                                        col_len.wrapping_sub(1),
+                                        col_len
+                                    )
+                                ))
+                                .width(100)
+                                .style(theme::Button::Secondary)
+                        ])
+                        .height(Length::Fill)
+                        .align_y(Vertical::Center)
+                    ]
+                    .height(150),
+                )
             });
         Scrollable::new(container(column).align_x(Horizontal::Center))
             .direction(Direction::Vertical(Properties::default()))
@@ -200,6 +220,7 @@ impl Application for AppLayout {
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
                                         n.downloaded,
+                                        AppView::Episodes,
                                     )
                                 })
                                 .collect();
@@ -227,6 +248,7 @@ impl Application for AppLayout {
                                         n.guid.to_owned(),
                                         n.title.to_owned(),
                                         n.downloaded,
+                                        AppView::Episodes,
                                     )
                                 })
                                 .collect();
@@ -266,6 +288,7 @@ impl Application for AppLayout {
                                     n.guid.to_owned(),
                                     n.title.to_owned(),
                                     n.downloaded,
+                                    AppView::EpisodesForShow(id),
                                 )
                             })
                             .collect();
@@ -283,13 +306,6 @@ impl Application for AppLayout {
             Message::ViewConfig => {
                 self.app_view = AppView::Config;
                 Command::none()
-            }
-            Message::SaveConfig(config) => {
-                let update_config_result = create_config(config);
-                match update_config_result {
-                    Ok(_) => Command::perform(Config::load_config(), Message::ConfigLoaded),
-                    Err(_) => Command::none(),
-                }
             }
             Message::AddFeed => {
                 let result = add_feed_to_database(self.feed_to_add.to_owned());
@@ -377,6 +393,7 @@ impl Application for AppLayout {
                                 ep.guid,
                                 ep.title,
                                 ep.downloaded,
+                                AppView::Queue,
                             )),
                             Err(_) => (),
                         }

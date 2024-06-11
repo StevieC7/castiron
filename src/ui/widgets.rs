@@ -12,15 +12,15 @@ use crate::types::config::CastironConfig;
 use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
-use super::gui::{Message, PodQueueMessage};
-use super::styles::{style_main_area, style_player_area};
+use super::gui::{AppView, Message, PodQueueMessage};
+use super::styles::{style_list_item, style_main_area, style_player_area};
 use iced::widget::scrollable::Properties;
 use iced::widget::{
     button, column, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable,
-    Text, Toggler,
+    Text,
 };
 use iced::widget::{container::Appearance, scrollable::Direction};
-use iced::{Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
+use iced::{theme, Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
 
 pub struct FeedList {
@@ -197,51 +197,57 @@ pub struct Episode {
     pub guid: String,
     pub title: String,
     pub downloaded: bool,
+    pub viewing_from: AppView,
 }
 
 impl Episode {
-    pub fn new(id: i32, feed_id: i32, guid: String, title: String, downloaded: bool) -> Self {
+    pub fn new(
+        id: i32,
+        feed_id: i32,
+        guid: String,
+        title: String,
+        downloaded: bool,
+        viewing_from: AppView,
+    ) -> Self {
         Self {
             id,
             feed_id,
             guid,
             title,
             downloaded,
+            viewing_from,
         }
     }
     pub fn view(&self) -> Element<Message> {
         let action_container: Row<Message, Theme, Renderer> = match self.downloaded {
-            true => row!(
-                button(text("Play")).on_press(Message::PlayEpisode(self.id)),
-                button(text("Delete")).on_press(Message::DeleteEpisode(self.id)),
-                button(text("Queue")).on_press(Message::PodQueueMessage(
-                    PodQueueMessage::AddToQueue(self.id)
-                ))
-            ),
-            false => row!(
-                button(text("Download")).on_press(Message::DownloadEpisode(self.id)),
-                button(text("Queue")).on_press(Message::PodQueueMessage(
-                    PodQueueMessage::AddToQueue(self.id)
-                ))
-            ),
+            true => match self.viewing_from {
+                AppView::Queue => {
+                    row!(button(text("Play")).on_press(Message::PlayEpisode(self.id)))
+                }
+                _ => row!(
+                    button(text("Delete"))
+                        .on_press(Message::DeleteEpisode(self.id))
+                        .style(theme::Button::Secondary)
+                        .width(Length::FillPortion(3)),
+                    horizontal_space().width(Length::FillPortion(1)),
+                    button(text("Queue"))
+                        .on_press(Message::PodQueueMessage(PodQueueMessage::AddToQueue(
+                            self.id
+                        )))
+                        .style(theme::Button::Secondary)
+                        .width(Length::FillPortion(3)),
+                    button(text("Play"))
+                        .on_press(Message::PlayEpisode(self.id))
+                        .width(Length::FillPortion(3))
+                ),
+            },
+            false => row!(button(text("Download")).on_press(Message::DownloadEpisode(self.id)),),
         };
         container(row!(
             text(self.title.to_owned()).width(300),
             action_container
         ))
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-            Appearance {
-                background: Some(iced::Background::Color(palette.background.strong.color)),
-                text_color: None,
-                border: Border {
-                    color: Color::default(),
-                    width: 0.0,
-                    radius: [5.0, 5.0, 5.0, 5.0].into(),
-                },
-                shadow: Shadow::default(),
-            }
-        })
+        .style(style_list_item)
         .height(150)
         .center_x()
         .center_y()

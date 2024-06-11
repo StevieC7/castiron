@@ -29,3 +29,17 @@ pub fn style_player_area(theme: &Theme) -> Appearance {
         shadow: Shadow::default(),
     }
 }
+
+pub fn style_list_item(theme: &Theme) -> Appearance {
+    let palette = theme.extended_palette();
+    Appearance {
+        background: Some(iced::Background::Color(palette.background.strong.color)),
+        text_color: None,
+        border: Border {
+            color: Color::default(),
+            width: 0.0,
+            radius: [5.0, 5.0, 5.0, 5.0].into(),
+        },
+        shadow: Shadow::default(),
+    }
+}
