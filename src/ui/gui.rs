@@ -237,6 +237,27 @@ impl Application for AppLayout {
                                 })
                                 .collect();
                             self.episodes = EpisodeList::new(episode_list);
+                            match self.app_view {
+                                AppView::EpisodesForShow(id) => {
+                                    self.episodes_for_show = EpisodeList::new(
+                                        found
+                                            .iter()
+                                            .filter(|ep| ep.feed_id == id)
+                                            .map(|n| {
+                                                Episode::new(
+                                                    n.id,
+                                                    n.feed_id,
+                                                    n.guid.to_owned(),
+                                                    n.title.to_owned(),
+                                                    n.downloaded,
+                                                    AppView::EpisodesForShow(id),
+                                                )
+                                            })
+                                            .collect(),
+                                    );
+                                }
+                                _ => {}
+                            }
                         }
                         None => {}
                     };

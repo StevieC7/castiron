@@ -10,7 +10,7 @@ use crate::{
     file_handling::{
         episodes::{
             add_episode_to_database, get_episode_by_id, get_episode_list_database,
-            update_episode_download_status,
+            mark_episodes_deleted_if_file_nonexistent, update_episode_download_status,
         },
         feeds::{get_feed_list_database, load_feed_xml, update_feed_title},
     },
@@ -21,6 +21,7 @@ use super::feeds::update_feeds;
 
 pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
     update_feeds().await?;
+    mark_episodes_deleted_if_file_nonexistent()?;
     let feed_collection = get_feed_list_database()?;
     let mut episodes: Vec<Episode> = Vec::new();
     for feed in feed_collection {

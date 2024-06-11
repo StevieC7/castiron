@@ -84,6 +84,25 @@ pub fn delete_episode_from_fs(id: i32) -> Result<(), CustomError> {
     Ok(())
 }
 
+pub fn mark_episodes_deleted_if_file_nonexistent() -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = "SELECT * FROM episodes;";
+    let mut episodes: Vec<Episode> = Vec::new();
+    connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
+    for episode in episodes {
+        match (
+            Path::new(format!("./episodes/{}", episode.file_name).as_str()).exists(),
+            episode.downloaded,
+        ) {
+            (true, true) => (),
+            (false, false) => (),
+            (true, false) => update_episode_download_status(episode.id, true)?,
+            (false, true) => update_episode_download_status(episode.id, false)?,
+        }
+    }
+    Ok(())
+}
+
 fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) -> bool {
     let mut result_tuple: Episode = Episode {
         id: 0,
