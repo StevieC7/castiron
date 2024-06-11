@@ -16,10 +16,11 @@ use super::gui::{Message, PodQueueMessage};
 use super::styles::{style_main_area, style_player_area};
 use iced::widget::scrollable::Properties;
 use iced::widget::{
-    button, column, container, pick_list, row, text, Column, Row, Scrollable, Text, Toggler,
+    button, column, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable,
+    Text, Toggler,
 };
 use iced::widget::{container::Appearance, scrollable::Direction};
-use iced::{Border, Color, Element, Length, Renderer, Shadow, Theme};
+use iced::{Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
 
 pub struct FeedList {
@@ -111,10 +112,15 @@ impl Config {
     }
 
     pub fn view(&self) -> Element<Message> {
-        container(row![
-            text("Theme"),
-            pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged)
-        ])
+        container(
+            row![
+                text("Theme"),
+                horizontal_space(),
+                pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged)
+            ]
+            .width(300)
+            .align_items(Alignment::Center),
+        )
         .width(Length::Fill)
         .center_x()
         .into()
