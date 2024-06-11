@@ -27,8 +27,6 @@ pub fn create_config(config: Option<CastironConfig>) -> Result<CastironConfig, C
         }
         None => {
             let conf = CastironConfig {
-                auto_dl_new: true,
-                auto_rm_after_listen: true,
                 theme: Theme::default().to_string(),
             };
             let config_file_path = Path::new("./castiron_config.json");
@@ -48,8 +46,6 @@ mod tests {
     #[test]
     fn test_create_config() {
         let test_config_value = CastironConfig {
-            auto_dl_new: false,
-            auto_rm_after_listen: false,
             theme: Theme::default().to_string(),
         };
         assert!(create_config(Some(test_config_value)).is_ok())

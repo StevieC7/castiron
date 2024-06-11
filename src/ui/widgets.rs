@@ -111,21 +111,8 @@ impl Config {
     }
 
     pub fn view(&self) -> Element<Message> {
-        column![
-            Toggler::new(
-                String::from("Automatically download new episodes?"),
-                self.values.auto_dl_new,
-                move |n| {
-                    Message::SaveConfig(Some(CastironConfig {
-                        auto_dl_new: n,
-                        auto_rm_after_listen: self.values.auto_rm_after_listen,
-                        theme: self.values.theme.to_owned(),
-                    }))
-                }
-            ),
-            pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged).width(Length::Fill)
-        ]
-        .into()
+        column![pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged).width(Length::Fill)]
+            .into()
     }
 
     pub async fn load_config() -> Result<CastironConfig, String> {
