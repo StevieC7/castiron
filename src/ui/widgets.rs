@@ -111,8 +111,13 @@ impl Config {
     }
 
     pub fn view(&self) -> Element<Message> {
-        column![pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged).width(Length::Fill)]
-            .into()
+        container(row![
+            text("Theme"),
+            pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged)
+        ])
+        .width(Length::Fill)
+        .center_x()
+        .into()
     }
 
     pub async fn load_config() -> Result<CastironConfig, String> {

@@ -8,7 +8,7 @@ use iced::widget::{
 use iced::{executor, Alignment, Application, Command, Element, Length};
 use iced::{time, Subscription, Theme};
 
-use crate::file_handling::config::create_config;
+use crate::file_handling::config::{convert_theme_string_to_enum, create_config};
 use crate::file_handling::episodes::{
     delete_episode_from_fs, get_episode_by_id, get_episodes_by_feed_id,
 };
@@ -240,6 +240,7 @@ impl Application for AppLayout {
             Message::ConfigLoaded(config) => match config {
                 Err(_) => Command::none(),
                 Ok(data) => {
+                    self.theme = convert_theme_string_to_enum(data.theme.clone());
                     self.castiron_config = Some(Config::new(data, self.theme.clone()));
                     Command::none()
                 }
@@ -412,6 +413,12 @@ impl Application for AppLayout {
                 Command::none()
             }
             Message::ThemeChanged(theme) => {
+                match create_config(Some(CastironConfig {
+                    theme: theme.to_string(),
+                })) {
+                    Ok(_) => (),
+                    Err(_) => (),
+                };
                 self.theme = theme;
                 match &self.castiron_config {
                     Some(config) => {
