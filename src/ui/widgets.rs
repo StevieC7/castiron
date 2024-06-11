@@ -19,7 +19,7 @@ use iced::widget::{
     button, column, container, pick_list, row, text, Column, Row, Scrollable, Text, Toggler,
 };
 use iced::widget::{container::Appearance, scrollable::Direction};
-use iced::{Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
+use iced::{Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
 
 pub struct FeedList {
@@ -33,16 +33,22 @@ impl FeedList {
     pub fn view(&self) -> Element<Message> {
         match self.feeds.len() {
             0 => text("No feeds to show.").into(),
-            _ => Scrollable::new(column![self
-                .feeds
-                .iter()
-                .fold(Column::new().spacing(10), |col, content| {
-                    col.push(content.view())
-                })])
+            _ => Scrollable::new(
+                container(
+                    self.feeds
+                        .iter()
+                        .fold(Column::new().spacing(10), |col, content| {
+                            col.push(content.view())
+                        }),
+                )
+                .align_x(Horizontal::Center),
+            )
             .direction(Direction::Both {
                 vertical: Properties::default(),
                 horizontal: Properties::default(),
             })
+            .width(Length::Fill)
+            .height(Length::Fill)
             .into(),
         }
     }

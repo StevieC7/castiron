@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use iced::alignment::Horizontal;
 use iced::widget::scrollable::{Direction, Properties};
 use iced::widget::{
     button, column, container, row, text, text_input, vertical_space, Column, Scrollable,
@@ -123,7 +124,7 @@ impl AppLayout {
                     ))
                 ))
             });
-        Scrollable::new(column)
+        Scrollable::new(container(column).align_x(Horizontal::Center))
             .direction(Direction::Vertical(Properties::default()))
             .width(Length::Fill)
             .height(Length::Fill)
@@ -452,7 +453,10 @@ impl Application for AppLayout {
                 .into()
             }
             AppView::Queue => match &self.queue.len() {
-                0 => text("Nothing queued yet.").into(),
+                0 => container(text("Nothing queued yet."))
+                    .center_x()
+                    .width(Length::Fill)
+                    .into(),
                 _ => self.view_queue().into(),
             },
             AppView::Config => match &self.castiron_config {
