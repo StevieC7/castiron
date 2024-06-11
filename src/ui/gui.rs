@@ -193,7 +193,6 @@ impl Application for AppLayout {
                             let episode_list = found
                                 .iter()
                                 .map(|n| {
-                                    println!("Episode {} has id {}", n.title, n.id);
                                     Episode::new(
                                         n.id,
                                         n.feed_id,
@@ -393,12 +392,17 @@ impl Application for AppLayout {
                 match &self.player.sink {
                     Some(sink) => match sink.empty() {
                         true => {
-                            let id = match self.queue.get(0) {
-                                Some(episode) => episode.id,
-                                None => 0,
+                            let episode_id = match self.queue.get(0) {
+                                Some(episode) => Some(episode.id),
+                                None => None,
                             };
-                            self.player = Player::new(Some(id));
-                            self.queue.remove(0);
+                            match episode_id {
+                                Some(id) => {
+                                    self.player = Player::new(Some(id));
+                                    self.queue.remove(0);
+                                }
+                                None => {}
+                            }
                         }
                         false => {}
                     },
@@ -425,69 +429,68 @@ impl Application for AppLayout {
     }
 
     fn view(&self) -> Element<Message> {
-        let column = column![
-            button(text("Feeds"))
-                .on_press(Message::ViewFeeds)
-                .width(Length::Fill),
-            button(text("Episodes"))
-                .on_press(Message::ViewEpisodes)
-                .width(Length::Fill),
-            button(text("Queue"))
-                .on_press(Message::ViewQueue)
-                .width(Length::Fill),
-            button(text("Config"))
-                .on_press(Message::ViewConfig)
-                .width(Length::Fill),
-            text_input("add feed", self.feed_to_add.as_str())
-                .on_input(Message::FeedToAddUpdated)
-                .width(Length::Fill),
-            button(text("Add"))
-                .on_press(Message::AddFeed)
-                .width(Length::Fill),
-            button(text("Sync"))
-                .on_press(Message::SyncEpisodes)
-                .width(Length::Fill),
-            vertical_space(),
-        ]
-        .width(300)
-        .align_items(Alignment::Center);
-        match self.app_view {
-            AppView::Feeds => column![
-                container(row![column, self.feeds.view()])
-                    .width(Length::Fill)
-                    .style(style_main_area),
-                self.player.view()
-            ]
-            .into(),
-            AppView::Episodes => row![column, self.episodes.view()].into(),
+        let main_content = match self.app_view {
+            AppView::Feeds => self.feeds.view(),
+            AppView::Episodes => self.episodes.view(),
             AppView::EpisodesForShow(id) => {
                 let feed_title = match get_feed_by_id(id) {
                     Ok(f) => match f.feed_title {
-                        Some(title) => title,
+                        Some(thing) => thing,
                         None => String::new(),
                     },
                     Err(_) => String::new(),
                 };
-                row![
-                    column,
-                    column![
-                        row![
-                            text(feed_title),
-                            button("Back").on_press(Message::ViewFeeds)
-                        ],
-                        self.episodes_for_show.view()
-                    ]
+                column![
+                    row![
+                        button("Back").on_press(Message::ViewFeeds),
+                        text(format!("{feed_title}"))
+                    ],
+                    self.episodes_for_show.view()
                 ]
                 .into()
             }
-            AppView::Config => match &self.castiron_config {
-                Some(config) => row![column, config.view()].into(),
-                None => row![column, text("No config to show.")].into(),
-            },
             AppView::Queue => match &self.queue.len() {
-                0 => row![column, text("Nothing queued yet.")].into(),
-                _ => row![column, self.view_queue()].into(),
+                0 => text("Nothing queued yet.").into(),
+                _ => self.view_queue().into(),
             },
-        }
+            AppView::Config => match &self.castiron_config {
+                Some(config) => config.view().into(),
+                None => text("No config to show.").into(),
+            },
+        };
+        column![
+            container(row![
+                column![
+                    button(text("Feeds"))
+                        .on_press(Message::ViewFeeds)
+                        .width(Length::Fill),
+                    button(text("Episodes"))
+                        .on_press(Message::ViewEpisodes)
+                        .width(Length::Fill),
+                    button(text("Queue"))
+                        .on_press(Message::ViewQueue)
+                        .width(Length::Fill),
+                    button(text("Config"))
+                        .on_press(Message::ViewConfig)
+                        .width(Length::Fill),
+                    text_input("add feed", self.feed_to_add.as_str())
+                        .on_input(Message::FeedToAddUpdated)
+                        .width(Length::Fill),
+                    button(text("Add"))
+                        .on_press(Message::AddFeed)
+                        .width(Length::Fill),
+                    button(text("Sync"))
+                        .on_press(Message::SyncEpisodes)
+                        .width(Length::Fill),
+                    vertical_space(),
+                ]
+                .width(300)
+                .align_items(Alignment::Center),
+                main_content
+            ])
+            .style(style_main_area),
+            self.player.view()
+        ]
+        .into()
     }
 }
