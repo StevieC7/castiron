@@ -19,7 +19,7 @@ use iced::widget::{
     button, column, container, pick_list, row, text, Column, Row, Scrollable, Text, Toggler,
 };
 use iced::widget::{container::Appearance, scrollable::Direction};
-use iced::{Border, Color, Element, Length, Renderer, Shadow, Theme};
+use iced::{Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
 use rodio::{OutputStream, Sink};
 
 pub struct FeedList {
@@ -149,12 +149,14 @@ impl EpisodeList {
         match self.episodes.len() {
             0 => text("No episodes to show.").into(),
             _ => Scrollable::new(
-                container(column![self
-                    .episodes
-                    .iter()
-                    .fold(Column::new().spacing(10), |col, content| {
-                        col.push(content.view())
-                    })])
+                container(
+                    self.episodes
+                        .iter()
+                        .fold(Column::new().spacing(10), |col, content| {
+                            col.push(content.view())
+                        }),
+                )
+                .align_x(Horizontal::Center)
                 .style(style_main_area),
             )
             .direction(Direction::Vertical(Properties::default()))

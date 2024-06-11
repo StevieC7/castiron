@@ -444,9 +444,11 @@ impl Application for AppLayout {
                     row![
                         button("Back").on_press(Message::ViewFeeds),
                         text(format!("{feed_title}"))
-                    ],
+                    ]
+                    .padding(10),
                     self.episodes_for_show.view()
                 ]
+                .spacing(10)
                 .into()
             }
             AppView::Queue => match &self.queue.len() {
