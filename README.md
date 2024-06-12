@@ -1,5 +1,5 @@
 # Castiron
-A podcast player written in Rust.
+A desktop podcast player application written in Rust.
 
 
 
