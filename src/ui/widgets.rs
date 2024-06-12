@@ -262,7 +262,7 @@ impl Episode {
             action_container
         ))
         .style(style_list_item)
-        .height(150)
+        .height(75)
         .width(Length::Shrink)
         .max_width(600)
         .padding(20)
