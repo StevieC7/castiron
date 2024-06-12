@@ -45,6 +45,7 @@ impl FeedList {
                             col.push(content.view())
                         }),
                 )
+                .padding(20)
                 .align_x(Horizontal::Center),
             )
             .direction(Direction::Both {
