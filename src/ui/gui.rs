@@ -21,7 +21,7 @@ use crate::file_handling::setup::{
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
-use super::styles::{style_main_area, style_sidebar, style_sidebar_item, style_sidebar_rule};
+use super::styles::{style_main_area, style_sidebar, style_sidebar_rule, MyButtonStyle};
 use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
 
 pub struct AppLayout {
@@ -527,42 +527,30 @@ impl Application for AppLayout {
             container(row![
                 container(
                     column![
-                        container(
-                            button(text("Feeds"))
-                                .on_press(Message::ViewFeeds)
-                                .style(theme::Button::Text)
-                                .padding(10)
-                                .width(Length::Fill)
-                        )
-                        .style(style_sidebar_item),
+                        button(text("Feeds"))
+                            .on_press(Message::ViewFeeds)
+                            .style(MyButtonStyle::new())
+                            .padding(10)
+                            .width(Length::Fill),
                         Rule::horizontal(1).style(style_sidebar_rule),
-                        container(
-                            button(text("Episodes"))
-                                .on_press(Message::ViewEpisodes)
-                                .style(theme::Button::Text)
-                                .padding(10)
-                                .width(Length::Fill),
-                        )
-                        .style(style_sidebar_item),
+                        button(text("Episodes"))
+                            .on_press(Message::ViewEpisodes)
+                            .style(MyButtonStyle::new())
+                            .padding(10)
+                            .width(Length::Fill),
                         Rule::horizontal(1).style(style_sidebar_rule),
-                        container(
-                            button(text("Queue"))
-                                .on_press(Message::ViewQueue)
-                                .style(theme::Button::Text)
-                                .padding(10)
-                                .width(Length::Fill),
-                        )
-                        .style(style_sidebar_item),
+                        button(text("Queue"))
+                            .on_press(Message::ViewQueue)
+                            .style(MyButtonStyle::new())
+                            .padding(10)
+                            .width(Length::Fill),
                         Rule::horizontal(1).style(style_sidebar_rule),
-                        container(
-                            button(text("Config"))
-                                .on_press(Message::ViewConfig)
-                                .style(theme::Button::Text)
-                                .padding(10)
-                                .width(Length::Fill),
-                        )
-                        .style(style_sidebar_item),
-                        container(column![
+                        button(text("Config"))
+                            .on_press(Message::ViewConfig)
+                            .style(MyButtonStyle::new())
+                            .padding(10)
+                            .width(Length::Fill),
+                        column![
                             text_input("add feed", self.feed_to_add.as_str())
                                 .on_input(Message::FeedToAddUpdated)
                                 .width(Length::Fill),
@@ -570,20 +558,15 @@ impl Application for AppLayout {
                                 .on_press(Message::AddFeed)
                                 .padding(10)
                                 .width(Length::Fill),
-                        ])
-                        .style(style_sidebar_item),
-                        container(
-                            button(text("Sync"))
-                                .on_press(Message::SyncEpisodes)
-                                .style(theme::Button::Secondary)
-                                .padding(10)
-                                .width(Length::Fill),
-                        )
-                        .style(style_sidebar_item),
+                        ],
+                        button(text("Sync"))
+                            .on_press(Message::SyncEpisodes)
+                            .style(theme::Button::Secondary)
+                            .padding(10)
+                            .width(Length::Fill),
                         vertical_space(),
                     ]
                     .width(300)
-                    .spacing(10)
                     .align_items(Alignment::Center),
                 )
                 .style(style_sidebar),
