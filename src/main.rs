@@ -4,9 +4,9 @@ mod types;
 mod ui;
 
 use iced::{Application, Settings};
-use ui::gui::AppLayout;
+use ui::gui::Castiron;
 
 #[tokio::main]
 async fn main() -> iced::Result {
-    AppLayout::run(Settings::default())
+    Castiron::run(Settings::default())
 }

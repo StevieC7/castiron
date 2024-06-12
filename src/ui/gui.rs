@@ -25,7 +25,7 @@ use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 use super::styles::{style_main_area, style_sidebar, style_sidebar_rule, MyButtonStyle};
 use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
 
-pub struct AppLayout {
+pub struct Castiron {
     app_view: AppView,
     feeds: FeedList,
     episodes: EpisodeList,
@@ -78,7 +78,7 @@ pub enum PodQueueMessage {
     MoveToPosition(usize, usize),
 }
 
-impl AppLayout {
+impl Castiron {
     pub fn update_queue(&mut self) {
         let new_queue: Vec<Episode> = self
             .queue
@@ -157,7 +157,7 @@ impl AppLayout {
     }
 }
 
-impl Application for AppLayout {
+impl Application for Castiron {
     type Executor = executor::Default;
     type Message = Message;
     type Theme = Theme;
