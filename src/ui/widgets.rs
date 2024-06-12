@@ -283,7 +283,6 @@ impl Player {
                     if let Ok((stream, stream_handle)) = OutputStream::try_default() {
                         match Sink::try_new(&stream_handle) {
                             Ok(sink) => {
-                                println!("episode file name {}", episode.file_name);
                                 if let Ok(file) =
                                     File::open(format!("./episodes/{}", episode.file_name))
                                 {

@@ -1,4 +1,5 @@
 use std::time::Duration;
+use url::Url;
 
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::scrollable::{Direction, Properties};
@@ -217,7 +218,7 @@ impl Application for AppLayout {
             },
             Message::EpisodesLoaded(episodes) => match episodes {
                 Err(e) => {
-                    println!("Episode loading failed: {:?}", e);
+                    eprintln!("Episode loading failed: {:?}", e);
                     Command::none()
                 }
                 Ok(data) => {
@@ -266,7 +267,7 @@ impl Application for AppLayout {
             },
             Message::EpisodesSynced(episodes) => match episodes {
                 Err(e) => {
-                    println!("Episode sync failed: {:?}", e);
+                    eprintln!("Episode sync failed: {:?}", e);
                     Command::none()
                 }
                 Ok(data) => {
@@ -341,11 +342,18 @@ impl Application for AppLayout {
                 Command::none()
             }
             Message::AddFeed => {
-                let result = add_feed_to_database(self.feed_to_add.to_owned());
-                self.feed_to_add = String::new();
-                match result {
-                    Ok(_) => Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
-                    Err(_) => Command::none(),
+                if self.feed_to_add == String::new() {
+                    Command::none()
+                } else if let Err(_) = Url::parse(self.feed_to_add.as_str()) {
+                    // TODO: warn user that URL is invalid
+                    Command::none()
+                } else {
+                    let result = add_feed_to_database(self.feed_to_add.to_owned());
+                    self.feed_to_add = String::new();
+                    match result {
+                        Ok(_) => Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+                        Err(_) => Command::none(),
+                    }
                 }
             }
             Message::FeedToAddUpdated(val) => {
@@ -365,7 +373,7 @@ impl Application for AppLayout {
                     Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded)
                 }
                 Err(e) => {
-                    println!("Error downloading episode: {e}");
+                    eprintln!("Error downloading episode: {e}");
                     Command::none()
                 }
             },
@@ -411,7 +419,6 @@ impl Application for AppLayout {
                         let position = self.queue.iter().position(|pod| pod.id == id);
                         match position {
                             Some(index) => {
-                                println!("index {} removed", index);
                                 self.queue.remove(index);
                             }
                             None => {}

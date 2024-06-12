@@ -16,7 +16,7 @@ pub async fn update_feeds() -> Result<(), CustomError> {
     for feed in feeds {
         match update_single_feed(feed).await {
             Ok(_) => (),
-            Err(e) => println!("Error occurred while updating feed {:?}", e),
+            Err(e) => eprintln!("Error occurred while updating feed {:?}", e),
         }
     }
     Ok(())

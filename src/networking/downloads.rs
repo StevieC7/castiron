@@ -87,7 +87,7 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
                                 })
                             }
                             None => {
-                                println!("No url found for {:?}.", g_node.text())
+                                eprintln!("No url found for {:?}.", g_node.text())
                             }
                         },
                         None => (),
@@ -105,7 +105,6 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
 }
 
 async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomError> {
-    println!("Downloading: {:?} from {:?}", file_name, url);
     let mut directory = File::create(Path::new(format!("./episodes/{file_name}").as_str()))?;
     let response = get(url).await?;
     let mut content = Cursor::new(response.bytes().await?);
@@ -115,7 +114,6 @@ async fn download_episode(url: &str, file_name: &str) -> Result<String, CustomEr
 
 pub async fn download_episode_by_guid(id: i32) -> Result<String, CustomError> {
     let episode = get_episode_by_id(id)?;
-    println!("DEBUG: retrieved {:?}", episode);
     download_episode(episode.url.as_str(), episode.file_name.as_str()).await?;
     update_episode_download_status(id, true)?;
     Ok(String::from("Download successful."))
