@@ -262,7 +262,10 @@ impl Episode {
             action_container
         ))
         .style(style_list_item)
-        .height(75)
+        .height(match self.viewing_from {
+            AppView::Queue => 100,
+            _ => 75,
+        })
         .width(Length::Shrink)
         .max_width(600)
         .padding(20)

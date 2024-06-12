@@ -126,12 +126,14 @@ impl Castiron {
                                     )
                                 ))
                                 .width(100)
+                                .height(Length::Fill)
                                 .style(theme::Button::Secondary),
                             button(text("X"))
                                 .on_press(Message::PodQueueMessage(
                                     PodQueueMessage::RemoveFromQueue(content.id)
                                 ))
                                 .width(100)
+                                .height(Length::Fill)
                                 .style(theme::Button::Secondary),
                             button(text("Move Down"))
                                 .on_press(Message::PodQueueMessage(
@@ -141,12 +143,13 @@ impl Castiron {
                                     )
                                 ))
                                 .width(100)
+                                .height(Length::Fill)
                                 .style(theme::Button::Secondary)
                         ])
                         .height(Length::Fill)
                         .align_y(Vertical::Center)
                     ]
-                    .height(150),
+                    .height(100),
                 )
             });
         Scrollable::new(container(column).align_x(Horizontal::Center))
@@ -518,7 +521,7 @@ impl Application for Castiron {
                 .into()
             }
             AppView::Queue => match &self.queue.len() {
-                0 => container(text("Nothing queued yet."))
+                0 => container(text("Queue is empty."))
                     .padding(20)
                     .center_x()
                     .width(Length::Fill)
