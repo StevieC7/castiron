@@ -32,7 +32,11 @@ impl FeedList {
     }
     pub fn view(&self) -> Element<Message> {
         match self.feeds.len() {
-            0 => text("No feeds to show.").into(),
+            0 => container(text("You don't follow any feeds yet."))
+                .padding(20)
+                .center_x()
+                .width(Length::Fill)
+                .into(),
             _ => Scrollable::new(
                 container(
                     self.feeds
@@ -75,9 +79,14 @@ impl Feed {
     }
     pub fn view(&self) -> Element<Message> {
         container(row!(
-            text(self.feed_title.to_owned()),
-            button(text("Unfollow")).on_press(Message::UnfollowFeed(self.id)),
-            button(text("View Episodes")).on_press(Message::ViewEpisodesForShow(self.id))
+            text(self.feed_title.to_owned()).width(Length::FillPortion(6)),
+            button(text("Unfollow"))
+                .style(theme::Button::Secondary)
+                .on_press(Message::UnfollowFeed(self.id))
+                .width(Length::FillPortion(3)),
+            button(text("View Episodes"))
+                .on_press(Message::ViewEpisodesForShow(self.id))
+                .width(Length::FillPortion(3))
         ))
         .style(|theme: &Theme| {
             let palette = theme.extended_palette();
@@ -92,9 +101,11 @@ impl Feed {
                 shadow: Shadow::default(),
             }
         })
+        .width(Length::Shrink)
+        .max_width(600)
+        .padding(20)
         .center_x()
         .center_y()
-        .padding(20)
         .into()
     }
 }
@@ -118,6 +129,7 @@ impl Config {
                 pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged)
             ]
             .width(300)
+            .padding(20)
             .align_items(Alignment::Center),
         )
         .width(Length::Fill)
@@ -150,7 +162,11 @@ impl EpisodeList {
     }
     pub fn view(&self) -> Element<Message> {
         match self.episodes.len() {
-            0 => text("No episodes to show.").into(),
+            0 => container(text("No episodes from feeds you follow."))
+                .padding(20)
+                .center_x()
+                .width(Length::Fill)
+                .into(),
             _ => Scrollable::new(
                 container(
                     self.episodes
@@ -159,8 +175,7 @@ impl EpisodeList {
                             col.push(content.view())
                         }),
                 )
-                .align_x(Horizontal::Center)
-                .style(style_main_area),
+                .center_x(),
             )
             .direction(Direction::Vertical(Properties::default()))
             .width(Length::Fill)
@@ -248,9 +263,10 @@ impl Episode {
         ))
         .style(style_list_item)
         .height(150)
-        .center_x()
-        .center_y()
+        .width(Length::Shrink)
+        .max_width(600)
         .padding(20)
+        .center_y()
         .into()
     }
 

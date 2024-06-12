@@ -515,11 +515,11 @@ impl Application for Castiron {
                     self.episodes_for_show.view()
                 ]
                 .spacing(10)
-                .align_items(Alignment::Center)
                 .into()
             }
             AppView::Queue => match &self.queue.len() {
                 0 => container(text("Nothing queued yet."))
+                    .padding(20)
                     .center_x()
                     .width(Length::Fill)
                     .into(),
@@ -527,7 +527,11 @@ impl Application for Castiron {
             },
             AppView::Config => match &self.castiron_config {
                 Some(config) => config.view().into(),
-                None => text("No config to show.").into(),
+                None => container(text("Config does not exist."))
+                    .padding(20)
+                    .center_x()
+                    .width(Length::Fill)
+                    .into(),
             },
         };
         column![
