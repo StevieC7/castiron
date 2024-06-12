@@ -354,7 +354,10 @@ impl Application for Castiron {
                     let result = add_feed_to_database(self.feed_to_add.to_owned());
                     self.feed_to_add = String::new();
                     match result {
-                        Ok(_) => Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+                        Ok(_) => Command::batch([
+                            Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
+                            Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+                        ]),
                         Err(_) => Command::none(),
                     }
                 }

@@ -13,7 +13,7 @@ use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
 use super::gui::{AppView, Message, PodQueueMessage};
-use super::styles::{style_list_item, style_main_area, style_player_area};
+use super::styles::{style_list_item, style_player_area};
 use iced::widget::scrollable::Properties;
 use iced::widget::{
     button, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable, Text,
@@ -193,6 +193,7 @@ impl EpisodeList {
             ))),
         }
     }
+
     pub async fn sync_episodes() -> Result<Option<Vec<EpisodeData>>, String> {
         let result = sync_episode_list().await;
         match result {
