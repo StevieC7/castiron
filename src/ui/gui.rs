@@ -21,7 +21,7 @@ use crate::file_handling::setup::{
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
-use super::styles::style_main_area;
+use super::styles::{style_main_area, style_sidebar};
 use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
 
 pub struct AppLayout {
@@ -508,6 +508,7 @@ impl Application for AppLayout {
                     self.episodes_for_show.view()
                 ]
                 .spacing(10)
+                .align_items(Alignment::Center)
                 .into()
             }
             AppView::Queue => match &self.queue.len() {
@@ -524,32 +525,35 @@ impl Application for AppLayout {
         };
         column![
             container(row![
-                column![
-                    button(text("Feeds"))
-                        .on_press(Message::ViewFeeds)
-                        .width(Length::Fill),
-                    button(text("Episodes"))
-                        .on_press(Message::ViewEpisodes)
-                        .width(Length::Fill),
-                    button(text("Queue"))
-                        .on_press(Message::ViewQueue)
-                        .width(Length::Fill),
-                    button(text("Config"))
-                        .on_press(Message::ViewConfig)
-                        .width(Length::Fill),
-                    text_input("add feed", self.feed_to_add.as_str())
-                        .on_input(Message::FeedToAddUpdated)
-                        .width(Length::Fill),
-                    button(text("Add"))
-                        .on_press(Message::AddFeed)
-                        .width(Length::Fill),
-                    button(text("Sync"))
-                        .on_press(Message::SyncEpisodes)
-                        .width(Length::Fill),
-                    vertical_space(),
-                ]
-                .width(300)
-                .align_items(Alignment::Center),
+                container(
+                    column![
+                        button(text("Feeds"))
+                            .on_press(Message::ViewFeeds)
+                            .width(Length::Fill),
+                        button(text("Episodes"))
+                            .on_press(Message::ViewEpisodes)
+                            .width(Length::Fill),
+                        button(text("Queue"))
+                            .on_press(Message::ViewQueue)
+                            .width(Length::Fill),
+                        button(text("Config"))
+                            .on_press(Message::ViewConfig)
+                            .width(Length::Fill),
+                        text_input("add feed", self.feed_to_add.as_str())
+                            .on_input(Message::FeedToAddUpdated)
+                            .width(Length::Fill),
+                        button(text("Add"))
+                            .on_press(Message::AddFeed)
+                            .width(Length::Fill),
+                        button(text("Sync"))
+                            .on_press(Message::SyncEpisodes)
+                            .width(Length::Fill),
+                        vertical_space(),
+                    ]
+                    .width(300)
+                    .align_items(Alignment::Center),
+                )
+                .style(style_sidebar),
                 main_content
             ])
             .style(style_main_area),

@@ -16,6 +16,20 @@ pub fn style_main_area(theme: &Theme) -> Appearance {
     }
 }
 
+pub fn style_sidebar(theme: &Theme) -> Appearance {
+    let palette = theme.extended_palette();
+    Appearance {
+        background: Some(Background::Color(palette.background.strong.color)),
+        text_color: Some(palette.background.strong.text),
+        border: Border {
+            color: Color::default(),
+            width: 0.0,
+            radius: Radius::default(),
+        },
+        shadow: Shadow::default(),
+    }
+}
+
 pub fn style_player_area(theme: &Theme) -> Appearance {
     let palette = theme.extended_palette();
     Appearance {
