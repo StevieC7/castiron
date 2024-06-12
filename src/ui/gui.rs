@@ -293,7 +293,11 @@ impl Application for Castiron {
                         }
                         None => {}
                     };
-                    Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded)
+                    // TODO: also load feeds because title might have been updated
+                    Command::batch([
+                        Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
+                        Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
+                    ])
                 }
             },
             Message::ConfigLoaded(config) => match config {
@@ -354,10 +358,9 @@ impl Application for Castiron {
                     let result = add_feed_to_database(self.feed_to_add.to_owned());
                     self.feed_to_add = String::new();
                     match result {
-                        Ok(_) => Command::batch([
-                            Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced),
-                            Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
-                        ]),
+                        Ok(_) => {
+                            Command::perform(EpisodeList::sync_episodes(), Message::EpisodesSynced)
+                        }
                         Err(_) => Command::none(),
                     }
                 }
