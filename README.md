@@ -1,5 +1,11 @@
 # Castiron
-A podcast player (being) written in Rust.
+A podcast player written in Rust.
+
+
+
+https://github.com/StevieC7/castiron/assets/46426105/a2d8f29b-1a03-4e73-b70f-4e6009670569
+
+
 
 ## Disclaimer
 This is still being written. It is not full-featured. This is a project being built for the purpose of learning the Rust programming language and exploring its ecosystem.
