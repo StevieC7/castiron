@@ -1,5 +1,10 @@
 use iced::{
-    border::Radius, widget::container::Appearance, Background, Border, Color, Shadow, Theme,
+    border::Radius,
+    widget::{
+        container::Appearance,
+        rule::{Appearance as RuleAppearance, FillMode},
+    },
+    Background, Border, Color, Length, Shadow, Theme,
 };
 
 pub fn style_main_area(theme: &Theme) -> Appearance {
@@ -27,6 +32,30 @@ pub fn style_sidebar(theme: &Theme) -> Appearance {
             radius: Radius::default(),
         },
         shadow: Shadow::default(),
+    }
+}
+
+pub fn style_sidebar_item(theme: &Theme) -> Appearance {
+    let palette = theme.extended_palette();
+    Appearance {
+        background: Some(Background::Color(palette.background.strong.color)),
+        text_color: Some(palette.primary.base.text),
+        border: Border {
+            color: Color::default(),
+            width: 0.0,
+            radius: Radius::default(),
+        },
+        shadow: Shadow::default(),
+    }
+}
+
+pub fn style_sidebar_rule(theme: &Theme) -> RuleAppearance {
+    let palette = theme.extended_palette();
+    RuleAppearance {
+        color: palette.background.base.color,
+        width: 3,
+        radius: Radius::default(),
+        fill_mode: FillMode::Full,
     }
 }
 

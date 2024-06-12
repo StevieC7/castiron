@@ -3,7 +3,7 @@ use std::time::Duration;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::scrollable::{Direction, Properties};
 use iced::widget::{
-    button, column, container, row, text, text_input, vertical_space, Column, Scrollable,
+    button, column, container, row, text, text_input, vertical_space, Column, Rule, Scrollable,
 };
 use iced::{executor, theme, Alignment, Application, Command, Element, Length};
 use iced::{time, Subscription, Theme};
@@ -21,7 +21,7 @@ use crate::file_handling::setup::{
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
-use super::styles::{style_main_area, style_sidebar};
+use super::styles::{style_main_area, style_sidebar, style_sidebar_item, style_sidebar_rule};
 use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
 
 pub struct AppLayout {
@@ -527,30 +527,63 @@ impl Application for AppLayout {
             container(row![
                 container(
                     column![
-                        button(text("Feeds"))
-                            .on_press(Message::ViewFeeds)
-                            .width(Length::Fill),
-                        button(text("Episodes"))
-                            .on_press(Message::ViewEpisodes)
-                            .width(Length::Fill),
-                        button(text("Queue"))
-                            .on_press(Message::ViewQueue)
-                            .width(Length::Fill),
-                        button(text("Config"))
-                            .on_press(Message::ViewConfig)
-                            .width(Length::Fill),
-                        text_input("add feed", self.feed_to_add.as_str())
-                            .on_input(Message::FeedToAddUpdated)
-                            .width(Length::Fill),
-                        button(text("Add"))
-                            .on_press(Message::AddFeed)
-                            .width(Length::Fill),
-                        button(text("Sync"))
-                            .on_press(Message::SyncEpisodes)
-                            .width(Length::Fill),
+                        container(
+                            button(text("Feeds"))
+                                .on_press(Message::ViewFeeds)
+                                .style(theme::Button::Text)
+                                .padding(10)
+                                .width(Length::Fill)
+                        )
+                        .style(style_sidebar_item),
+                        Rule::horizontal(1).style(style_sidebar_rule),
+                        container(
+                            button(text("Episodes"))
+                                .on_press(Message::ViewEpisodes)
+                                .style(theme::Button::Text)
+                                .padding(10)
+                                .width(Length::Fill),
+                        )
+                        .style(style_sidebar_item),
+                        Rule::horizontal(1).style(style_sidebar_rule),
+                        container(
+                            button(text("Queue"))
+                                .on_press(Message::ViewQueue)
+                                .style(theme::Button::Text)
+                                .padding(10)
+                                .width(Length::Fill),
+                        )
+                        .style(style_sidebar_item),
+                        Rule::horizontal(1).style(style_sidebar_rule),
+                        container(
+                            button(text("Config"))
+                                .on_press(Message::ViewConfig)
+                                .style(theme::Button::Text)
+                                .padding(10)
+                                .width(Length::Fill),
+                        )
+                        .style(style_sidebar_item),
+                        container(column![
+                            text_input("add feed", self.feed_to_add.as_str())
+                                .on_input(Message::FeedToAddUpdated)
+                                .width(Length::Fill),
+                            button(text("Add"))
+                                .on_press(Message::AddFeed)
+                                .padding(10)
+                                .width(Length::Fill),
+                        ])
+                        .style(style_sidebar_item),
+                        container(
+                            button(text("Sync"))
+                                .on_press(Message::SyncEpisodes)
+                                .style(theme::Button::Secondary)
+                                .padding(10)
+                                .width(Length::Fill),
+                        )
+                        .style(style_sidebar_item),
                         vertical_space(),
                     ]
                     .width(300)
+                    .spacing(10)
                     .align_items(Alignment::Center),
                 )
                 .style(style_sidebar),
