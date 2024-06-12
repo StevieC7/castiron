@@ -2,7 +2,11 @@
 A desktop podcast player application written in Rust.
 
 
-https://github.com/StevieC7/castiron/assets/46426105/a2d8f29b-1a03-4e73-b70f-4e6009670569
+
+
+https://github.com/StevieC7/castiron/assets/46426105/2b50a4c2-5829-4b76-844d-b8f2e740d71c
+
+
 
 
 ## Features
