@@ -1,6 +1,7 @@
 /target
 /shows
 /episodes
+/thumbnails
 feed_list.json
 database.sqlite
 castiron_config.json

@@ -8,7 +8,7 @@ use std::{
 
 pub fn add_feed_to_database(url: String) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT, feed_title TEXT); INSERT INTO feeds (url,xml_file_path,feed_title) VALUES ('{url}', NULL, NULL);");
+    let query = format!("CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT, feed_title TEXT, image_file_path TEXT); INSERT INTO feeds (url) VALUES ('{url}');");
     connection.execute(query)?;
     Ok(())
 }
@@ -29,6 +29,13 @@ pub fn update_feed_file_path(id: i32, file_path: String) -> Result<(), CustomErr
     Ok(())
 }
 
+pub fn update_thumbnail_file_path(id: i32, file_path: String) -> Result<(), CustomError> {
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("UPDATE feeds SET image_file_path = '{file_path}' WHERE id = {id};");
+    connection.execute(query)?;
+    Ok(())
+}
+
 pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = "SELECT * FROM feeds";
@@ -39,6 +46,7 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
             feed_url: String::new(),
             xml_file_path: None,
             feed_title: None,
+            image_file_path: None,
         };
         let id_kv_tuple = n.iter().find(|val| val.0 == "id");
         match id_kv_tuple {
@@ -74,6 +82,11 @@ pub fn get_feed_list_database() -> Result<Vec<FeedMeta>, CustomError> {
             },
             None => (),
         }
+        if let Some(wrapped_image_file_path) = n.iter().find(|val| val.0 == "image_file_path") {
+            if let Some(image_file_path) = wrapped_image_file_path.1 {
+                result_tuple.image_file_path = Some(image_file_path.to_string());
+            }
+        }
         feeds.push(result_tuple);
         true
     })?;
@@ -88,6 +101,7 @@ pub fn get_feed_by_id(id: i32) -> Result<FeedMeta, CustomError> {
         feed_url: String::new(),
         xml_file_path: None,
         feed_title: None,
+        image_file_path: None,
     };
     connection.iterate(query, |n| {
         let id_kv_tuple = n.iter().find(|val| val.0 == "id");
@@ -124,11 +138,17 @@ pub fn get_feed_by_id(id: i32) -> Result<FeedMeta, CustomError> {
             },
             None => (),
         }
+        if let Some(wrapped_image_file_path) = n.iter().find(|val| val.0 == "image_file_path") {
+            if let Some(image_file_path) = wrapped_image_file_path.1 {
+                result_tuple.image_file_path = Some(image_file_path.to_string());
+            }
+        }
         true
     })?;
     Ok(result_tuple)
 }
 
+// TODO: update so that it also deletes stored image for feed
 pub fn delete_associated_episodes_and_xml(id: i32) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("SELECT xml_file_path FROM feeds WHERE id = {id};");

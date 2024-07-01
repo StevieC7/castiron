@@ -16,9 +16,6 @@ use crate::file_handling::episodes::{
 use crate::file_handling::feeds::{
     add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
 };
-use crate::file_handling::setup::{
-    create_episodes_directory_if_not_existing, create_shows_directory_if_not_existing,
-};
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
@@ -58,7 +55,6 @@ pub enum Message {
     DownloadEpisode(i32),
     PlayEpisode(i32),
     DeleteEpisode(i32),
-    SetupCompleted(Result<(), String>),
     ConfigLoaded(Result<CastironConfig, String>),
     FeedsLoaded(Result<Vec<FeedMeta>, String>),
     EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
@@ -180,14 +176,6 @@ impl Application for Castiron {
                 theme: Theme::default(),
             },
             Command::batch([
-                Command::perform(
-                    create_shows_directory_if_not_existing(),
-                    Message::SetupCompleted,
-                ),
-                Command::perform(
-                    create_episodes_directory_if_not_existing(),
-                    Message::SetupCompleted,
-                ),
                 Command::perform(Config::load_config(), Message::ConfigLoaded),
                 Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
                 Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
@@ -210,9 +198,16 @@ impl Application for Castiron {
                 Ok(data) => {
                     let feed_list = data
                         .iter()
-                        .map(|n| match &n.feed_title {
-                            Some(feed_title) => Feed::new(n.id, feed_title.to_owned()),
-                            None => Feed::new(n.id, n.feed_url.to_owned()),
+                        .map(|n| match &n.image_file_path {
+                            Some(file_path) => match &n.feed_title {
+                                Some(feed_title) => {
+                                    Feed::new(n.id, feed_title.to_owned(), file_path.to_owned())
+                                }
+                                None => {
+                                    Feed::new(n.id, n.feed_url.to_owned(), file_path.to_owned())
+                                }
+                            },
+                            None => Feed::new(n.id, Default::default(), Default::default()),
                         })
                         .collect();
                     self.feeds = FeedList::new(feed_list);
@@ -495,7 +490,6 @@ impl Application for Castiron {
                 }
                 Command::none()
             }
-            Message::SetupCompleted(_) => Command::none(),
         }
     }
 
@@ -508,23 +502,20 @@ impl Application for Castiron {
             AppView::Feeds => self.feeds.view(),
             AppView::Episodes => self.episodes.view(),
             AppView::EpisodesForShow(id) => {
-                let feed_title = match get_feed_by_id(id) {
-                    Ok(f) => match f.feed_title {
-                        Some(thing) => thing,
-                        None => String::new(),
-                    },
-                    Err(_) => String::new(),
-                };
-                column![
-                    row![
-                        button("Back").on_press(Message::ViewFeeds),
-                        text(format!("{feed_title}"))
+                let feed = get_feed_by_id(id);
+                match feed {
+                    Ok(f) => column![
+                        row![
+                            button("Back").on_press(Message::ViewFeeds),
+                            text(format!("{}", f.feed_title.unwrap_or(String::new())))
+                        ]
+                        .padding(10),
+                        self.episodes_for_show.view()
                     ]
-                    .padding(10),
-                    self.episodes_for_show.view()
-                ]
-                .spacing(10)
-                .into()
+                    .spacing(10)
+                    .into(),
+                    Err(_) => text("Error loading").into(),
+                }
             }
             AppView::Queue => match &self.queue.len() {
                 0 => container(text("Queue is empty."))

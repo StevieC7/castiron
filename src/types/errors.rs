@@ -1,3 +1,5 @@
+use url::ParseError;
+
 #[derive(Debug)]
 pub enum CustomError {
     IOError(std::io::Error),
@@ -5,6 +7,8 @@ pub enum CustomError {
     SerdeJsonError(serde_json::Error),
     XmlError(roxmltree::Error),
     SqlError(sqlite::Error),
+    ParseError(url::ParseError),
+    Empty(()),
 }
 
 impl From<reqwest::Error> for CustomError {
@@ -34,5 +38,17 @@ impl From<std::io::Error> for CustomError {
 impl From<sqlite::Error> for CustomError {
     fn from(err: sqlite::Error) -> Self {
         CustomError::SqlError(err)
+    }
+}
+
+impl From<ParseError> for CustomError {
+    fn from(err: ParseError) -> Self {
+        CustomError::ParseError(err)
+    }
+}
+
+impl From<()> for CustomError {
+    fn from(err: ()) -> Self {
+        CustomError::Empty(err)
     }
 }

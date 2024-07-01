@@ -1,4 +1,5 @@
 use iced::alignment::Horizontal;
+use iced::widget::image::Handle;
 use rodio::Decoder;
 use std::fs::File;
 use std::io::BufReader;
@@ -7,7 +8,7 @@ use std::io::BufReader;
 use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::episodes::{get_episode_by_id, get_episode_list_database};
 use crate::file_handling::feeds::get_feed_list_database;
-use crate::networking::downloads::{download_episode_by_guid, sync_episode_list};
+use crate::networking::{downloads::download_episode_by_guid, feeds::sync_episode_list};
 use crate::types::config::CastironConfig;
 use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
@@ -16,7 +17,7 @@ use super::gui::{AppView, Message, PodQueueMessage};
 use super::styles::{style_list_item, style_player_area};
 use iced::widget::scrollable::Properties;
 use iced::widget::{
-    button, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable, Text,
+    button, container, horizontal_space, pick_list, row, text, Column, Image, Row, Scrollable, Text,
 };
 use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{theme, Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
@@ -72,14 +73,21 @@ impl FeedList {
 pub struct Feed {
     id: i32,
     feed_title: String,
+    full_image_path: String,
 }
 
 impl Feed {
-    pub fn new(id: i32, feed_title: String) -> Self {
-        Self { id, feed_title }
+    pub fn new(id: i32, feed_title: String, full_image_path: String) -> Self {
+        Self {
+            id,
+            feed_title,
+            full_image_path,
+        }
     }
     pub fn view(&self) -> Element<Message> {
+        let image = Image::<Handle>::new(self.full_image_path.as_str());
         container(row!(
+            image.height(50),
             text(self.feed_title.to_owned()).width(Length::FillPortion(6)),
             button(text("Unfollow"))
                 .style(theme::Button::Secondary)
