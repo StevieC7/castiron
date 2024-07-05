@@ -74,6 +74,8 @@ impl FeedList {
 pub struct Feed {
     id: i32,
     feed_title: String,
+    // TODO: replace the image path with an image handle constructed async elsewhere like so:
+    // image_handle: Option<Handle>,
     full_image_path: String,
 }
 
@@ -86,6 +88,7 @@ impl Feed {
         }
     }
     pub fn view(&self) -> Element<Message> {
+        // TODO: if let Some(handle) = self.image_handle then construct image, else do not try to render image
         let image = image(self.full_image_path.as_str());
         container(row!(
             image.height(50),
