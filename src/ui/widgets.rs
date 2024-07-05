@@ -1,8 +1,9 @@
 use iced::alignment::Horizontal;
-use iced::widget::image::Handle;
+use iced::widget::image;
 use rodio::Decoder;
 use std::fs::File;
 use std::io::BufReader;
+use std::time::Instant;
 // use std::ops::Range;
 
 use crate::file_handling::config::{create_config, read_config};
@@ -17,7 +18,7 @@ use super::gui::{AppView, Message, PodQueueMessage};
 use super::styles::{style_list_item, style_player_area};
 use iced::widget::scrollable::Properties;
 use iced::widget::{
-    button, container, horizontal_space, pick_list, row, text, Column, Image, Row, Scrollable, Text,
+    button, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable, Text,
 };
 use iced::widget::{container::Appearance, scrollable::Direction};
 use iced::{theme, Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
@@ -85,7 +86,7 @@ impl Feed {
         }
     }
     pub fn view(&self) -> Element<Message> {
-        let image = Image::<Handle>::new(self.full_image_path.as_str());
+        let image = image(self.full_image_path.as_str());
         container(row!(
             image.height(50),
             text(self.feed_title.to_owned()).width(Length::FillPortion(6)),
