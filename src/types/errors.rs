@@ -8,6 +8,7 @@ pub enum CustomError {
     XmlError(roxmltree::Error),
     SqlError(sqlite::Error),
     ParseError(url::ParseError),
+    TimeParseError(time::error::Parse),
     Empty(()),
 }
 
@@ -44,6 +45,12 @@ impl From<sqlite::Error> for CustomError {
 impl From<ParseError> for CustomError {
     fn from(err: ParseError) -> Self {
         CustomError::ParseError(err)
+    }
+}
+
+impl From<time::error::Parse> for CustomError {
+    fn from(err: time::error::Parse) -> Self {
+        CustomError::TimeParseError(err)
     }
 }
 

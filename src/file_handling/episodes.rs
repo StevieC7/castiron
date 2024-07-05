@@ -1,6 +1,7 @@
 use crate::types::{episodes::Episode, errors::CustomError};
 use sqlite::{open, Error};
 use std::{fs::remove_file, path::Path};
+use time::{format_description::well_known::Rfc2822, OffsetDateTime};
 
 pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
     let Episode {
@@ -14,11 +15,12 @@ pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
     } = episode;
     let mut sanitized_title = title.replace("'", "''");
     sanitized_title = sanitized_title.replace("\"", "\"\"");
+    let parsed_date = OffsetDateTime::parse(&date, &Rfc2822)?;
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("
-        CREATE TABLE IF NOT EXISTS episodes(id INTEGER PRIMARY KEY, guid TEXT, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_name TEXT, url TEXT, feed_id INTEGER, downloaded BOOLEAN);
+        CREATE TABLE IF NOT EXISTS episodes(id INTEGER PRIMARY KEY, guid TEXT, title TEXT, date TEXT, played BOOLEAN, played_seconds INTEGER, file_name TEXT, url TEXT, feed_id INTEGER, downloaded BOOLEAN);
         CREATE UNIQUE INDEX IF NOT EXISTS guid_feed_id ON episodes (guid,feed_id);
-        INSERT INTO episodes (guid, title, date, played, file_name, url, feed_id, downloaded) VALUES ('{guid}', '{sanitized_title}', '{date}', FALSE, '{file_name}', '{url}', '{feed_id}', FALSE)
+        INSERT INTO episodes (guid, title, date, played, file_name, url, feed_id, downloaded) VALUES ('{guid}', '{sanitized_title}', '{parsed_date}', FALSE, '{file_name}', '{url}', '{feed_id}', FALSE)
             ON CONFLICT DO NOTHING;
     ");
     connection.execute(query)?;
@@ -27,7 +29,7 @@ pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
 
 pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = "SELECT * FROM episodes";
+    let query = "SELECT * FROM episodes ORDER BY date DESC;";
     let mut episodes: Vec<Episode> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
     Ok(episodes)
