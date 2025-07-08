@@ -3,8 +3,6 @@ use iced::widget::image;
 use rodio::Decoder;
 use std::fs::File;
 use std::io::BufReader;
-use std::time::Instant;
-// use std::ops::Range;
 
 use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::episodes::{get_episode_by_id, get_episode_list_database};
