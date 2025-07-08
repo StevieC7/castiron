@@ -1,5 +1,3 @@
-use url::ParseError;
-
 #[derive(Debug)]
 pub enum CustomError {
     IOError(std::io::Error),
@@ -42,8 +40,8 @@ impl From<sqlite::Error> for CustomError {
     }
 }
 
-impl From<ParseError> for CustomError {
-    fn from(err: ParseError) -> Self {
+impl From<url::ParseError> for CustomError {
+    fn from(err: url::ParseError) -> Self {
         CustomError::ParseError(err)
     }
 }
