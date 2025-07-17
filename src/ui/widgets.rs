@@ -13,13 +13,10 @@ use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
 use super::gui::{AppView, Message, PodQueueMessage};
-use super::styles::{style_list_item, style_player_area};
-use iced::widget::scrollable::Properties;
 use iced::widget::{
     button, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable, Text,
 };
-use iced::widget::{container::Appearance, scrollable::Direction};
-use iced::{theme, Alignment, Border, Color, Element, Length, Renderer, Shadow, Theme};
+use iced::{Alignment, Element, Length, Renderer, Subscription, Theme};
 use rodio::{OutputStream, Sink};
 
 pub struct FeedList {
@@ -34,8 +31,7 @@ impl FeedList {
         match self.feeds.len() {
             0 => container(text("You don't follow any feeds yet."))
                 .padding(20)
-                .center_x()
-                .width(Length::Fill)
+                .center_x(Length::Fill)
                 .into(),
             _ => Scrollable::new(
                 container(
@@ -48,10 +44,6 @@ impl FeedList {
                 .padding(20)
                 .align_x(Horizontal::Center),
             )
-            .direction(Direction::Both {
-                vertical: Properties::default(),
-                horizontal: Properties::default(),
-            })
             .width(Length::Fill)
             .height(Length::Fill)
             .into(),
@@ -92,31 +84,16 @@ impl Feed {
             image.height(50),
             text(self.feed_title.to_owned()).width(Length::FillPortion(6)),
             button(text("Unfollow"))
-                .style(theme::Button::Secondary)
                 .on_press(Message::UnfollowFeed(self.id))
                 .width(Length::FillPortion(3)),
             button(text("View Episodes"))
                 .on_press(Message::ViewEpisodesForShow(self.id))
                 .width(Length::FillPortion(3))
         ))
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-            Appearance {
-                background: Some(iced::Background::Color(palette.background.strong.color)),
-                text_color: None,
-                border: Border {
-                    color: Color::default(),
-                    width: 0.0,
-                    radius: [5.0, 5.0, 5.0, 5.0].into(),
-                },
-                shadow: Shadow::default(),
-            }
-        })
-        .width(Length::Shrink)
         .max_width(600)
         .padding(20)
-        .center_x()
-        .center_y()
+        .center_x(Length::Shrink)
+        .center_y(Length::Fill)
         .into()
     }
 }
@@ -141,10 +118,9 @@ impl Config {
             ]
             .width(300)
             .padding(20)
-            .align_items(Alignment::Center),
+            .align_y(Alignment::Center),
         )
-        .width(Length::Fill)
-        .center_x()
+        .center_x(Length::Fill)
         .into()
     }
 
@@ -175,8 +151,7 @@ impl EpisodeList {
         match self.episodes.len() {
             0 => container(text("No episodes from feeds you follow."))
                 .padding(20)
-                .center_x()
-                .width(Length::Fill)
+                .center_x(Length::Fill)
                 .into(),
             _ => Scrollable::new(
                 container(
@@ -186,9 +161,8 @@ impl EpisodeList {
                             col.push(content.view())
                         }),
                 )
-                .center_x(),
+                .center_x(Length::Fill),
             )
-            .direction(Direction::Vertical(Properties::default()))
             .width(Length::Fill)
             .height(Length::Fill)
             .into(),
@@ -253,14 +227,12 @@ impl Episode {
                 _ => row!(
                     button(text("Delete"))
                         .on_press(Message::DeleteEpisode(self.id))
-                        .style(theme::Button::Secondary)
                         .width(Length::FillPortion(3)),
                     horizontal_space().width(Length::FillPortion(1)),
                     button(text("Queue"))
                         .on_press(Message::PodQueueMessage(PodQueueMessage::AddToQueue(
                             self.id
                         )))
-                        .style(theme::Button::Secondary)
                         .width(Length::FillPortion(3)),
                     button(text("Play"))
                         .on_press(Message::PlayEpisode(self.id))
@@ -273,15 +245,13 @@ impl Episode {
             text(self.title.to_owned()).width(300),
             action_container
         ))
-        .style(style_list_item)
-        .height(match self.viewing_from {
-            AppView::Queue => 100,
-            _ => 75,
-        })
         .width(Length::Shrink)
         .max_width(600)
         .padding(20)
-        .center_y()
+        .center_y(match self.viewing_from {
+            AppView::Queue => 100,
+            _ => 75,
+        })
         .into()
     }
 
@@ -298,12 +268,14 @@ pub struct Player {
     pub id: Option<i32>,
     stream: Option<OutputStream>,
     pub sink: Option<Sink>,
+    pub progress: u32,
 }
 
 #[derive(Clone, Debug)]
 pub enum PlayerMessage {
     Play,
     Pause,
+    Progress(u32),
 }
 
 impl Player {
@@ -326,6 +298,7 @@ impl Player {
                                                 id: Some(episode.id),
                                                 stream: Some(stream),
                                                 sink: Some(sink),
+                                                progress: 0,
                                             }
                                         }
                                         Err(e) => {
@@ -334,6 +307,7 @@ impl Player {
                                                 id: None,
                                                 stream: None,
                                                 sink: None,
+                                                progress: 0,
                                             }
                                         }
                                     }
@@ -343,6 +317,7 @@ impl Player {
                                         id: None,
                                         stream: None,
                                         sink: None,
+                                        progress: 0,
                                     }
                                 }
                             }
@@ -352,6 +327,7 @@ impl Player {
                                     id: None,
                                     stream: None,
                                     sink: None,
+                                    progress: 0,
                                 }
                             }
                         }
@@ -361,6 +337,7 @@ impl Player {
                             id: None,
                             stream: None,
                             sink: None,
+                            progress: 0,
                         }
                     }
                 } else {
@@ -369,6 +346,7 @@ impl Player {
                         id: None,
                         stream: None,
                         sink: None,
+                        progress: 0,
                     }
                 }
             }
@@ -376,6 +354,7 @@ impl Player {
                 id: None,
                 stream: None,
                 sink: None,
+                progress: 0,
             },
         }
     }
@@ -390,7 +369,14 @@ impl Player {
                 Some(sink) => sink.pause(),
                 None => (),
             },
+            PlayerMessage::Progress(amount) => {
+                self.progress = amount;
+            }
         }
+    }
+
+    pub fn subscription(&self) -> Subscription<Message> {
+        Subscription::none()
     }
 
     pub fn view(&self) -> Element<Message> {
@@ -408,13 +394,13 @@ impl Player {
             row!(
                 title,
                 button(text("Play")).on_press(Message::PlayerMessage(PlayerMessage::Play)),
-                button(text("Pause")).on_press(Message::PlayerMessage(PlayerMessage::Pause))
+                button(text("Pause")).on_press(Message::PlayerMessage(PlayerMessage::Pause)),
+                // progress_bar(0.0..=100.0, self.progress)
             )
             .spacing(10),
         )
         .width(Length::Fill)
         .padding(20)
-        .style(style_player_area)
         .align_x(Horizontal::Center)
         .into()
     }
