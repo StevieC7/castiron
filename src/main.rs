@@ -15,5 +15,7 @@ fn main() -> iced::Result {
 
     // TODO: fix styling / theming
     // TODO: fix messages / tasks
-    application("Castiron", Castiron::update, Castiron::view).run()
+    application("Castiron", Castiron::update, Castiron::view)
+        .subscription(Castiron::subscription)
+        .run()
 }

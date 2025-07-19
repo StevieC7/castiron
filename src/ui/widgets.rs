@@ -1,6 +1,6 @@
 use iced::alignment::Horizontal;
 use iced::widget::image;
-use rodio::Decoder;
+use rodio::{Decoder, Source};
 use std::fs::File;
 use std::io::BufReader;
 
@@ -14,10 +14,11 @@ use crate::types::feeds::FeedMeta;
 
 use super::gui::{AppView, Message, PodQueueMessage};
 use iced::widget::{
-    button, container, horizontal_space, pick_list, row, text, Column, Row, Scrollable, Text,
+    button, container, horizontal_space, pick_list, progress_bar, row, text, Column, Row,
+    Scrollable, Text,
 };
-use iced::{Alignment, Element, Length, Renderer, Subscription, Theme};
-use rodio::{OutputStream, Sink};
+use iced::{Alignment, Element, Length, Renderer, Theme};
+use rodio::{OutputStream, OutputStreamBuilder, Sink};
 
 pub struct FeedList {
     feeds: Vec<Feed>,
@@ -263,98 +264,71 @@ impl Episode {
     }
 }
 
-#[allow(dead_code)] // The stream isn't called anywhere, but it is necessary to keep the sink alive
+#[allow(dead_code)] // Sink is the handle to the stream, but if stream is dropped, playback stops.
+#[derive(Default)]
 pub struct Player {
     pub id: Option<i32>,
     stream: Option<OutputStream>,
     pub sink: Option<Sink>,
-    pub progress: u32,
+    pub progress: f32,
+    pub duration_seconds: f32,
 }
 
 #[derive(Clone, Debug)]
 pub enum PlayerMessage {
     Play,
     Pause,
-    Progress(u32),
+    Progress(f32),
 }
 
 impl Player {
     pub fn new(id: Option<i32>) -> Self {
         match id {
-            Some(id) => {
-                if let Ok(episode) = get_episode_by_id(id) {
-                    if let Ok((stream, stream_handle)) = OutputStream::try_default() {
-                        match Sink::try_new(&stream_handle) {
-                            Ok(sink) => {
-                                if let Ok(file) =
-                                    File::open(format!("./episodes/{}", episode.file_name))
-                                {
-                                    let file_buf = BufReader::new(file);
-                                    match Decoder::new(file_buf) {
-                                        Ok(source) => {
-                                            sink.append(source);
-                                            sink.play();
-                                            Self {
-                                                id: Some(episode.id),
-                                                stream: Some(stream),
-                                                sink: Some(sink),
-                                                progress: 0,
-                                            }
-                                        }
-                                        Err(e) => {
-                                            eprintln!("{:?}", e);
-                                            Self {
-                                                id: None,
-                                                stream: None,
-                                                sink: None,
-                                                progress: 0,
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    eprintln!("failed to open file {}", episode.file_name);
-                                    Self {
-                                        id: None,
-                                        stream: None,
-                                        sink: None,
-                                        progress: 0,
-                                    }
-                                }
-                            }
-                            Err(_) => {
-                                eprintln!("failed to create Sink");
-                                Self {
-                                    id: None,
-                                    stream: None,
-                                    sink: None,
-                                    progress: 0,
-                                }
-                            }
-                        }
-                    } else {
-                        eprintln!("failed to create OutputStream");
-                        Self {
-                            id: None,
-                            stream: None,
-                            sink: None,
-                            progress: 0,
-                        }
-                    }
-                } else {
-                    eprintln!("failed to get episode from db");
-                    Self {
-                        id: None,
-                        stream: None,
-                        sink: None,
-                        progress: 0,
-                    }
+            None => Self::default(),
+            Some(id) => match get_episode_by_id(id) {
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    Self::default()
                 }
-            }
-            None => Self {
-                id: None,
-                stream: None,
-                sink: None,
-                progress: 0,
+                Ok(episode) => match OutputStreamBuilder::open_default_stream() {
+                    Err(e) => {
+                        eprintln!("{:?}", e);
+                        Self::default()
+                    }
+                    Ok(stream_handle) => {
+                        let sink = Sink::connect_new(&stream_handle.mixer());
+                        match File::open(format!("./episodes/{}", episode.file_name)) {
+                            Err(e) => {
+                                eprintln!("{:?}", e);
+                                Self::default()
+                            }
+                            Ok(file) => {
+                                let file_buf = BufReader::new(file);
+                                match Decoder::new(file_buf) {
+                                    Err(e) => {
+                                        eprintln!("{:?}", e);
+                                        Self::default()
+                                    }
+                                    Ok(source) => {
+                                        let duration_secs = match source.total_duration() {
+                                            Some(dur) => dur.as_secs_f32(),
+                                            None => 0.0,
+                                        };
+                                        sink.append(source);
+                                        sink.play();
+                                        Self {
+                                            id: Some(episode.id),
+                                            stream: Some(stream_handle),
+                                            sink: Some(sink),
+                                            progress: 0.0,
+                                            duration_seconds: duration_secs,
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
             },
         }
     }
@@ -375,10 +349,6 @@ impl Player {
         }
     }
 
-    pub fn subscription(&self) -> Subscription<Message> {
-        Subscription::none()
-    }
-
     pub fn view(&self) -> Element<Message> {
         let title: Text<Theme, Renderer> = match self.id {
             Some(id) => {
@@ -395,7 +365,7 @@ impl Player {
                 title,
                 button(text("Play")).on_press(Message::PlayerMessage(PlayerMessage::Play)),
                 button(text("Pause")).on_press(Message::PlayerMessage(PlayerMessage::Pause)),
-                // progress_bar(0.0..=100.0, self.progress)
+                progress_bar(0.0..=self.duration_seconds, self.progress)
             )
             .spacing(10),
         )

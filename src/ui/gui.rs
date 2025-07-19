@@ -452,7 +452,12 @@ impl Castiron {
                                 None => {}
                             }
                         }
-                        false => {}
+                        false => {
+                            // Get playhead from sink with get_pos
+                            let position = sink.get_pos();
+                            // Set progress in state
+                            self.player.progress = position.as_secs_f32();
+                        }
                     },
                     None => {}
                 }
@@ -478,7 +483,7 @@ impl Castiron {
         }
     }
 
-    fn subscription(&self) -> Subscription<Message> {
+    pub fn subscription(&self) -> Subscription<Message> {
         Subscription::batch(vec![
             time::every(Duration::from_millis(100)).map(|_| Message::PlayerProgressed)
         ])
