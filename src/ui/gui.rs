@@ -8,20 +8,28 @@ use iced::{
     Alignment, Element, Length, Subscription, Task, Theme,
 };
 
-use super::widgets::{episode::Episode, feed::Feed};
-use super::widgets::{Config, EpisodeList, FeedList, Player, PlayerMessage};
-use crate::file_handling::config::{
-    convert_theme_string_to_enum, create_config, load_or_create_config,
+use super::widgets::{
+    config::Config,
+    episode::Episode,
+    episode_list::EpisodeList,
+    feed::Feed,
+    feed_list::FeedList,
+    player::{Player, PlayerMessage},
 };
-use crate::file_handling::episodes::{
-    delete_episode_from_fs, get_episode_by_id, get_episode_list_database, get_episodes_by_feed_id,
+use crate::{
+    file_handling::{
+        config::{convert_theme_string_to_enum, create_config, load_or_create_config},
+        episodes::{
+            delete_episode_from_fs, get_episode_by_id, get_episode_list_database,
+            get_episodes_by_feed_id,
+        },
+        feeds::{
+            add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
+            get_feed_list_database,
+        },
+    },
+    types::{config::CastironConfig, episodes::Episode as EpisodeData, feeds::FeedMeta},
 };
-use crate::file_handling::feeds::{
-    add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
-    get_feed_list_database,
-};
-use crate::types::config::CastironConfig;
-use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
 
 pub struct Castiron {
     app_view: AppView,
