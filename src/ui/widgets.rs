@@ -93,7 +93,7 @@ impl Feed {
         .max_width(600)
         .padding(20)
         .center_x(Length::Shrink)
-        .center_y(Length::Fill)
+        // .center_y(Length::Fill)
         .into()
     }
 }
@@ -230,10 +230,7 @@ impl Episode {
         .width(Length::Shrink)
         .max_width(600)
         .padding(20)
-        .center_y(match self.viewing_from {
-            AppView::Queue => 100,
-            _ => 75,
-        })
+        .center_y(Length::Shrink)
         .into()
     }
 
