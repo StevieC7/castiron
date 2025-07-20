@@ -281,8 +281,17 @@ impl Player {
                                 Self::default()
                             }
                             Ok(file) => {
+                                let file_meta = file.metadata();
+                                let byte_len = match file_meta {
+                                    Ok(meta) => meta.len(),
+                                    Err(_) => 0,
+                                };
                                 let file_buf = BufReader::new(file);
-                                match Decoder::new(file_buf) {
+                                match Decoder::builder()
+                                    .with_data(file_buf)
+                                    .with_byte_len(byte_len)
+                                    .build()
+                                {
                                     Err(e) => {
                                         eprintln!("{:?}", e);
                                         Self::default()
