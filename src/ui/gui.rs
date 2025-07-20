@@ -592,6 +592,10 @@ impl Castiron {
         ]
         .into()
     }
+
+    pub fn theme(&self) -> Theme {
+        self.theme.clone()
+    }
 }
 
 impl Default for Castiron {

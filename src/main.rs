@@ -12,6 +12,7 @@ fn main() -> iced::Result {
     // TODO: fix styling / theming
     application("Castiron", Castiron::update, Castiron::view)
         .subscription(Castiron::subscription)
+        .theme(Castiron::theme)
         .run_with(|| {
             (
                 Castiron::default(),
