@@ -1,13 +1,15 @@
 use url::Url;
 
-use iced::widget::{
-    button, column, container, row, text, text_input, vertical_space, Column, Rule, Scrollable,
+use iced::{
+    advanced::image::Handle,
+    widget::{
+        button, column, container, row, text, text_input, vertical_space, Column, Rule, Scrollable,
+    },
+    Alignment, Element, Length, Subscription, Task, Theme,
 };
-use iced::Task;
-use iced::{Alignment, Element, Length};
-use iced::{Subscription, Theme};
 
-use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
+use super::widgets::{episode::Episode, feed::Feed};
+use super::widgets::{Config, EpisodeList, FeedList, Player, PlayerMessage};
 use crate::file_handling::config::{
     convert_theme_string_to_enum, create_config, load_or_create_config,
 };
@@ -86,12 +88,16 @@ impl Castiron {
                     list.iter()
                         .map(|n| match &n.image_file_path {
                             Some(file_path) => match &n.feed_title {
-                                Some(feed_title) => {
-                                    Feed::new(n.id, feed_title.to_owned(), file_path.to_owned())
-                                }
-                                None => {
-                                    Feed::new(n.id, n.feed_url.to_owned(), file_path.to_owned())
-                                }
+                                Some(feed_title) => Feed::new(
+                                    n.id,
+                                    feed_title.to_owned(),
+                                    Some(Handle::from_path(file_path.to_owned())),
+                                ),
+                                None => Feed::new(
+                                    n.id,
+                                    n.feed_url.to_owned(),
+                                    Some(Handle::from_path(file_path.to_owned())),
+                                ),
                             },
                             None => Feed::new(n.id, Default::default(), Default::default()),
                         })
@@ -104,6 +110,13 @@ impl Castiron {
                     found
                         .iter()
                         .map(|n| {
+                            let handle = match get_feed_by_id(n.feed_id) {
+                                Ok(feed) => match feed.image_file_path {
+                                    Some(path) => Some(Handle::from_path(path)),
+                                    None => None,
+                                },
+                                Err(_) => None,
+                            };
                             Episode::new(
                                 n.id,
                                 n.feed_id,
@@ -111,6 +124,7 @@ impl Castiron {
                                 n.title.to_owned(),
                                 n.downloaded,
                                 AppView::Episodes,
+                                handle,
                             )
                         })
                         .collect(),
@@ -142,22 +156,42 @@ impl Castiron {
             .map(|episode| {
                 let updated_episode = get_episode_by_id(episode.id);
                 match updated_episode {
-                    Ok(u_episode) => Episode::new(
-                        u_episode.id,
-                        u_episode.feed_id,
-                        u_episode.guid,
-                        u_episode.title,
-                        u_episode.downloaded,
-                        AppView::Queue,
-                    ),
-                    Err(_) => Episode::new(
-                        episode.id,
-                        episode.feed_id,
-                        episode.guid.to_owned(),
-                        episode.title.to_owned(),
-                        episode.downloaded,
-                        AppView::Queue,
-                    ),
+                    Ok(u_episode) => {
+                        let handle = match get_feed_by_id(u_episode.feed_id) {
+                            Ok(feed) => match feed.image_file_path {
+                                Some(path) => Some(Handle::from_path(path)),
+                                None => None,
+                            },
+                            Err(_) => None,
+                        };
+                        Episode::new(
+                            u_episode.id,
+                            u_episode.feed_id,
+                            u_episode.guid,
+                            u_episode.title,
+                            u_episode.downloaded,
+                            AppView::Queue,
+                            handle,
+                        )
+                    }
+                    Err(_) => {
+                        let handle = match get_feed_by_id(episode.feed_id) {
+                            Ok(feed) => match feed.image_file_path {
+                                Some(path) => Some(Handle::from_path(path)),
+                                None => None,
+                            },
+                            Err(_) => None,
+                        };
+                        Episode::new(
+                            episode.id,
+                            episode.feed_id,
+                            episode.guid.to_owned(),
+                            episode.title.to_owned(),
+                            episode.downloaded,
+                            AppView::Queue,
+                            handle,
+                        )
+                    }
                 }
             })
             .collect();
@@ -221,12 +255,16 @@ impl Castiron {
                         .iter()
                         .map(|n| match &n.image_file_path {
                             Some(file_path) => match &n.feed_title {
-                                Some(feed_title) => {
-                                    Feed::new(n.id, feed_title.to_owned(), file_path.to_owned())
-                                }
-                                None => {
-                                    Feed::new(n.id, n.feed_url.to_owned(), file_path.to_owned())
-                                }
+                                Some(feed_title) => Feed::new(
+                                    n.id,
+                                    feed_title.to_owned(),
+                                    Some(Handle::from_path(file_path.to_owned())),
+                                ),
+                                None => Feed::new(
+                                    n.id,
+                                    n.feed_url.to_owned(),
+                                    Some(Handle::from_path(file_path.to_owned())),
+                                ),
                             },
                             None => Feed::new(n.id, Default::default(), Default::default()),
                         })
@@ -246,6 +284,13 @@ impl Castiron {
                             let episode_list = found
                                 .iter()
                                 .map(|n| {
+                                    let handle = match get_feed_by_id(n.feed_id) {
+                                        Ok(feed) => match feed.image_file_path {
+                                            Some(path) => Some(Handle::from_path(path)),
+                                            None => None,
+                                        },
+                                        Err(_) => None,
+                                    };
                                     Episode::new(
                                         n.id,
                                         n.feed_id,
@@ -253,6 +298,7 @@ impl Castiron {
                                         n.title.to_owned(),
                                         n.downloaded,
                                         AppView::Episodes,
+                                        handle,
                                     )
                                 })
                                 .collect();
@@ -264,6 +310,13 @@ impl Castiron {
                                             .iter()
                                             .filter(|ep| ep.feed_id == id)
                                             .map(|n| {
+                                                let handle = match get_feed_by_id(n.feed_id) {
+                                                    Ok(feed) => match feed.image_file_path {
+                                                        Some(path) => Some(Handle::from_path(path)),
+                                                        None => None,
+                                                    },
+                                                    Err(_) => None,
+                                                };
                                                 Episode::new(
                                                     n.id,
                                                     n.feed_id,
@@ -271,6 +324,7 @@ impl Castiron {
                                                     n.title.to_owned(),
                                                     n.downloaded,
                                                     AppView::EpisodesForShow(id),
+                                                    handle,
                                                 )
                                             })
                                             .collect(),
@@ -295,6 +349,13 @@ impl Castiron {
                             let episode_list = found
                                 .iter()
                                 .map(|n| {
+                                    let handle = match get_feed_by_id(n.feed_id) {
+                                        Ok(feed) => match feed.image_file_path {
+                                            Some(path) => Some(Handle::from_path(path)),
+                                            None => None,
+                                        },
+                                        Err(_) => None,
+                                    };
                                     Episode::new(
                                         n.id,
                                         n.feed_id,
@@ -302,6 +363,7 @@ impl Castiron {
                                         n.title.to_owned(),
                                         n.downloaded,
                                         AppView::Episodes,
+                                        handle,
                                     )
                                 })
                                 .collect();
@@ -309,7 +371,6 @@ impl Castiron {
                         }
                         None => {}
                     };
-                    // TODO: also load feeds because title might have been updated
                     Task::batch([
                         Task::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
                         Task::perform(FeedList::load_feeds(), Message::FeedsLoaded),
@@ -331,6 +392,13 @@ impl Castiron {
                         let episode_list = episodes_for_show
                             .iter()
                             .map(|n| {
+                                let handle = match get_feed_by_id(n.feed_id) {
+                                    Ok(feed) => match feed.image_file_path {
+                                        Some(path) => Some(Handle::from_path(path)),
+                                        None => None,
+                                    },
+                                    Err(_) => None,
+                                };
                                 Episode::new(
                                     n.id,
                                     n.feed_id,
@@ -338,6 +406,7 @@ impl Castiron {
                                     n.title.to_owned(),
                                     n.downloaded,
                                     AppView::EpisodesForShow(id),
+                                    handle,
                                 )
                             })
                             .collect();
@@ -466,14 +535,24 @@ impl Castiron {
                     PodQueueMessage::AddToQueue(id) => {
                         let episode = get_episode_by_id(id);
                         match episode {
-                            Ok(ep) => self.queue.push(Episode::new(
-                                ep.id,
-                                ep.feed_id,
-                                ep.guid,
-                                ep.title,
-                                ep.downloaded,
-                                AppView::Queue,
-                            )),
+                            Ok(ep) => {
+                                let handle = match get_feed_by_id(ep.feed_id) {
+                                    Ok(feed) => match feed.image_file_path {
+                                        Some(path) => Some(Handle::from_path(path)),
+                                        None => None,
+                                    },
+                                    Err(_) => None,
+                                };
+                                self.queue.push(Episode::new(
+                                    ep.id,
+                                    ep.feed_id,
+                                    ep.guid,
+                                    ep.title,
+                                    ep.downloaded,
+                                    AppView::Queue,
+                                    handle,
+                                ))
+                            }
                             Err(_) => (),
                         }
                     }

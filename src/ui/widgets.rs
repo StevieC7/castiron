@@ -1,6 +1,8 @@
+pub mod episode;
+pub mod feed;
+
 use iced::alignment::Horizontal;
 use iced::time;
-use iced::widget::image;
 use rodio::{Decoder, Source};
 use std::fs::File;
 use std::io::BufReader;
@@ -8,15 +10,18 @@ use std::time::Duration;
 
 use crate::file_handling::episodes::{get_episode_by_id, get_episode_list_database};
 use crate::file_handling::feeds::get_feed_list_database;
-use crate::networking::{downloads::download_episode_by_guid, feeds::sync_episode_list};
+use crate::networking::feeds::sync_episode_list;
 use crate::types::config::CastironConfig;
 use crate::types::episodes::Episode as EpisodeData;
 use crate::types::feeds::FeedMeta;
 
-use super::gui::{AppView, Message, PodQueueMessage};
+use super::gui::Message;
+use episode::Episode;
+use feed::Feed;
+
 use iced::widget::{
-    button, container, horizontal_space, pick_list, progress_bar, row, text, Column, Row,
-    Scrollable, Text,
+    button, container, horizontal_space, pick_list, progress_bar, row, text, Column, Scrollable,
+    Text,
 };
 use iced::{Alignment, Element, Length, Renderer, Subscription, Theme};
 use rodio::{OutputStream, OutputStreamBuilder, Sink};
@@ -58,43 +63,6 @@ impl FeedList {
                 e
             ))),
         }
-    }
-}
-
-pub struct Feed {
-    id: i32,
-    feed_title: String,
-    // TODO: replace the image path with an image handle constructed async elsewhere like so:
-    // image_handle: Option<Handle>,
-    full_image_path: String,
-}
-
-impl Feed {
-    pub fn new(id: i32, feed_title: String, full_image_path: String) -> Self {
-        Self {
-            id,
-            feed_title,
-            full_image_path,
-        }
-    }
-    pub fn view(&self) -> Element<Message> {
-        // TODO: if let Some(handle) = self.image_handle then construct image, else do not try to render image
-        let image = image(self.full_image_path.as_str());
-        container(row!(
-            image.height(50),
-            text(self.feed_title.to_owned()).width(Length::FillPortion(6)),
-            button(text("Unfollow"))
-                .on_press(Message::UnfollowFeed(self.id))
-                .width(Length::FillPortion(3)),
-            button(text("View Episodes"))
-                .on_press(Message::ViewEpisodesForShow(self.id))
-                .width(Length::FillPortion(3))
-        ))
-        .max_width(600)
-        .padding(20)
-        .center_x(Length::Shrink)
-        // .center_y(Length::Fill)
-        .into()
     }
 }
 
@@ -173,74 +141,81 @@ impl EpisodeList {
     }
 }
 
-pub struct Episode {
-    pub id: i32,
-    pub feed_id: i32,
-    pub guid: String,
-    pub title: String,
-    pub downloaded: bool,
-    pub viewing_from: AppView,
-}
+// pub struct Episode {
+//     pub id: i32,
+//     pub feed_id: i32,
+//     pub guid: String,
+//     pub title: String,
+//     pub downloaded: bool,
+//     pub viewing_from: AppView,
+//     pub image_handle: Option<image::Handle>,
+// }
 
-impl Episode {
-    pub fn new(
-        id: i32,
-        feed_id: i32,
-        guid: String,
-        title: String,
-        downloaded: bool,
-        viewing_from: AppView,
-    ) -> Self {
-        Self {
-            id,
-            feed_id,
-            guid,
-            title,
-            downloaded,
-            viewing_from,
-        }
-    }
-    pub fn view(&self) -> Element<Message> {
-        let action_container: Row<Message, Theme, Renderer> = match self.downloaded {
-            true => match self.viewing_from {
-                AppView::Queue => {
-                    row!(button(text("Play")).on_press(Message::PlayEpisode(self.id)))
-                }
-                _ => row!(
-                    button(text("Delete"))
-                        .on_press(Message::DeleteEpisode(self.id))
-                        .width(Length::FillPortion(3)),
-                    horizontal_space().width(Length::FillPortion(1)),
-                    button(text("Queue"))
-                        .on_press(Message::PodQueueMessage(PodQueueMessage::AddToQueue(
-                            self.id
-                        )))
-                        .width(Length::FillPortion(3)),
-                    button(text("Play"))
-                        .on_press(Message::PlayEpisode(self.id))
-                        .width(Length::FillPortion(3))
-                ),
-            },
-            false => row!(button(text("Download")).on_press(Message::DownloadEpisode(self.id)),),
-        };
-        container(row!(
-            text(self.title.to_owned()).width(300),
-            action_container
-        ))
-        .width(Length::Shrink)
-        .max_width(600)
-        .padding(20)
-        .center_y(Length::Shrink)
-        .into()
-    }
+// impl Episode {
+//     pub fn new(
+//         id: i32,
+//         feed_id: i32,
+//         guid: String,
+//         title: String,
+//         downloaded: bool,
+//         viewing_from: AppView,
+//         image_handle: Option<image::Handle>,
+//     ) -> Self {
+//         Self {
+//             id,
+//             feed_id,
+//             guid,
+//             title,
+//             downloaded,
+//             viewing_from,
+//             image_handle,
+//         }
+//     }
+//     pub fn view(&self) -> Element<Message> {
+//         let action_container: Row<Message, Theme, Renderer> = match self.downloaded {
+//             true => match self.viewing_from {
+//                 AppView::Queue => {
+//                     row!(button(text("Play")).on_press(Message::PlayEpisode(self.id)))
+//                 }
+//                 _ => row!(
+//                     button(text("Delete"))
+//                         .on_press(Message::DeleteEpisode(self.id))
+//                         .width(Length::FillPortion(3)),
+//                     horizontal_space().width(Length::FillPortion(1)),
+//                     button(text("Queue"))
+//                         .on_press(Message::PodQueueMessage(PodQueueMessage::AddToQueue(
+//                             self.id
+//                         )))
+//                         .width(Length::FillPortion(3)),
+//                     button(text("Play"))
+//                         .on_press(Message::PlayEpisode(self.id))
+//                         .width(Length::FillPortion(3))
+//                 ),
+//             },
+//             false => row!(button(text("Download")).on_press(Message::DownloadEpisode(self.id)),),
+//         };
+//         container(row!(
+//             match &self.image_handle {
+//                 Some(handle) => image(handle).height(100),
+//                 None => image(""),
+//             },
+//             text(self.title.to_owned()).width(300),
+//             action_container
+//         ))
+//         .width(Length::Shrink)
+//         .max_width(600)
+//         .padding(20)
+//         .center_y(Length::Shrink)
+//         .into()
+//     }
 
-    pub async fn download_single_episode(id: i32) -> Result<(), String> {
-        match download_episode_by_guid(id).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(String::from(format!("Error downloading episode: {:?}", e))),
-        }
-    }
-}
+//     pub async fn download_single_episode(id: i32) -> Result<(), String> {
+//         match download_episode_by_guid(id).await {
+//             Ok(_) => Ok(()),
+//             Err(e) => Err(String::from(format!("Error downloading episode: {:?}", e))),
+//         }
+//     }
+// }
 
 #[allow(dead_code)] // Sink is the handle to the stream, but if stream is dropped, playback stops.
 #[derive(Default)]
