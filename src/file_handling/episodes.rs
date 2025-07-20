@@ -51,7 +51,7 @@ pub fn get_episode_by_id(id: i32) -> Result<Episode, CustomError> {
 
 pub fn get_episodes_by_feed_id(feed_id: i32) -> Result<Vec<Episode>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
-    let query = format!("SELECT * FROM episodes WHERE feed_id = {feed_id};");
+    let query = format!("SELECT * FROM episodes WHERE feed_id = {feed_id} ORDER BY date DESC;");
     let mut episodes: Vec<Episode> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
     Ok(episodes)
