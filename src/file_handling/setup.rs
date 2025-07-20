@@ -1,40 +1,40 @@
 use sqlite::open;
-use std::path::Path;
-use tokio::fs::create_dir;
+use std::{fs::create_dir, path::Path};
+// use tokio::fs::create_dir;
 
-use crate::types::errors::CustomError;
+use crate::{file_handling::config::load_or_create_config, types::errors::CustomError};
 
-pub async fn create_shows_directory_if_not_existing() -> Result<(), CustomError> {
+fn create_shows_directory_if_not_existing() -> Result<(), CustomError> {
     match Path::new("./shows").exists() {
         true => Ok(()),
         false => {
-            create_dir(Path::new("./shows")).await?;
+            create_dir(Path::new("./shows"))?;
             Ok(())
         }
     }
 }
 
-pub async fn create_episodes_directory_if_not_existing() -> Result<(), CustomError> {
+fn create_episodes_directory_if_not_existing() -> Result<(), CustomError> {
     match Path::new("./episodes").exists() {
         true => Ok(()),
         false => {
-            create_dir(Path::new("./episodes")).await?;
+            create_dir(Path::new("./episodes"))?;
             Ok(())
         }
     }
 }
 
-pub async fn create_thumbnails_directory_if_not_existing() -> Result<(), CustomError> {
+fn create_thumbnails_directory_if_not_existing() -> Result<(), CustomError> {
     match Path::new("./thumbnails").exists() {
         true => Ok(()),
         false => {
-            create_dir(Path::new("./thumbnails")).await?;
+            create_dir(Path::new("./thumbnails"))?;
             Ok(())
         }
     }
 }
 
-pub async fn create_database_if_not_existing() -> Result<(), CustomError> {
+fn create_database_if_not_existing() -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("
         CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT, feed_title TEXT, image_file_path TEXT);
@@ -42,5 +42,19 @@ pub async fn create_database_if_not_existing() -> Result<(), CustomError> {
         CREATE UNIQUE INDEX IF NOT EXISTS guid_feed_id ON episodes (guid,feed_id);
         ");
     connection.execute(query)?;
+    Ok(())
+}
+
+fn load_existing_user_state() -> Result<(), CustomError> {
+    load_or_create_config()?;
+    Ok(())
+}
+
+pub async fn init_fs_and_db() -> Result<(), CustomError> {
+    create_shows_directory_if_not_existing()?;
+    create_episodes_directory_if_not_existing()?;
+    create_thumbnails_directory_if_not_existing()?;
+    create_database_if_not_existing()?;
+    load_existing_user_state()?;
     Ok(())
 }

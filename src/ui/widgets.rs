@@ -1,10 +1,11 @@
 use iced::alignment::Horizontal;
+use iced::time;
 use iced::widget::image;
 use rodio::{Decoder, Source};
 use std::fs::File;
 use std::io::BufReader;
+use std::time::Duration;
 
-use crate::file_handling::config::{create_config, read_config};
 use crate::file_handling::episodes::{get_episode_by_id, get_episode_list_database};
 use crate::file_handling::feeds::get_feed_list_database;
 use crate::networking::{downloads::download_episode_by_guid, feeds::sync_episode_list};
@@ -17,7 +18,7 @@ use iced::widget::{
     button, container, horizontal_space, pick_list, progress_bar, row, text, Column, Row,
     Scrollable, Text,
 };
-use iced::{Alignment, Element, Length, Renderer, Theme};
+use iced::{Alignment, Element, Length, Renderer, Subscription, Theme};
 use rodio::{OutputStream, OutputStreamBuilder, Sink};
 
 pub struct FeedList {
@@ -35,15 +36,13 @@ impl FeedList {
                 .center_x(Length::Fill)
                 .into(),
             _ => Scrollable::new(
-                container(
-                    self.feeds
-                        .iter()
-                        .fold(Column::new().spacing(10), |col, content| {
-                            col.push(content.view())
-                        }),
-                )
-                .padding(20)
-                .align_x(Horizontal::Center),
+                self.feeds
+                    .iter()
+                    .fold(Column::new().spacing(10), |col, content| {
+                        col.push(content.view())
+                    })
+                    .padding(20)
+                    .align_x(Horizontal::Center),
             )
             .width(Length::Fill)
             .height(Length::Fill)
@@ -102,7 +101,7 @@ impl Feed {
 #[derive(Clone)]
 pub struct Config {
     pub values: CastironConfig,
-    theme: Theme,
+    pub theme: Theme,
 }
 
 impl Config {
@@ -124,20 +123,6 @@ impl Config {
         .center_x(Length::Fill)
         .into()
     }
-
-    pub async fn load_config() -> Result<CastironConfig, String> {
-        let result = read_config();
-        match result {
-            Ok(conf) => Ok(conf),
-            Err(_) => {
-                let create_result = create_config(None);
-                match create_result {
-                    Ok(new_conf) => Ok(new_conf),
-                    Err(e) => Err(String::from(format!("Error fetching config: {:?}", e))),
-                }
-            }
-        }
-    }
 }
 
 pub struct EpisodeList {
@@ -155,17 +140,13 @@ impl EpisodeList {
                 .center_x(Length::Fill)
                 .into(),
             _ => Scrollable::new(
-                container(
-                    self.episodes
-                        .iter()
-                        .fold(Column::new().spacing(10), |col, content| {
-                            col.push(content.view())
-                        }),
-                )
-                .center_x(Length::Fill),
+                self.episodes
+                    .iter()
+                    .fold(Column::new().spacing(10), |col, content| {
+                        col.push(content.view())
+                    }),
             )
             .width(Length::Fill)
-            .height(Length::Fill)
             .into(),
         }
     }
@@ -278,7 +259,7 @@ pub struct Player {
 pub enum PlayerMessage {
     Play,
     Pause,
-    Progress(f32),
+    Progress,
 }
 
 impl Player {
@@ -343,10 +324,24 @@ impl Player {
                 Some(sink) => sink.pause(),
                 None => (),
             },
-            PlayerMessage::Progress(amount) => {
-                self.progress = amount;
-            }
+            PlayerMessage::Progress => match &self.sink {
+                Some(sink) => match sink.empty() {
+                    true => {
+                        self.progress = 0.0;
+                    }
+                    false => {
+                        let position = sink.get_pos();
+                        self.progress = position.as_secs_f32();
+                    }
+                },
+                None => (),
+            },
         }
+    }
+
+    pub fn subscription(&self) -> Subscription<Message> {
+        Subscription::batch(vec![time::every(Duration::from_millis(100))
+            .map(|_| Message::PlayerMessage(PlayerMessage::Progress))])
     }
 
     pub fn view(&self) -> Element<Message> {

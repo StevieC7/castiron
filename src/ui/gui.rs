@@ -1,21 +1,22 @@
-use std::time::Duration;
 use url::Url;
 
-use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{
     button, column, container, row, text, text_input, vertical_space, Column, Rule, Scrollable,
 };
 use iced::Task;
-use iced::{time, Subscription, Theme};
 use iced::{Alignment, Element, Length};
+use iced::{Subscription, Theme};
 
 use super::widgets::{Config, Episode, EpisodeList, Feed, FeedList, Player, PlayerMessage};
-use crate::file_handling::config::{convert_theme_string_to_enum, create_config};
+use crate::file_handling::config::{
+    convert_theme_string_to_enum, create_config, load_or_create_config,
+};
 use crate::file_handling::episodes::{
-    delete_episode_from_fs, get_episode_by_id, get_episodes_by_feed_id,
+    delete_episode_from_fs, get_episode_by_id, get_episode_list_database, get_episodes_by_feed_id,
 };
 use crate::file_handling::feeds::{
     add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
+    get_feed_list_database,
 };
 use crate::types::config::CastironConfig;
 use crate::types::{episodes::Episode as EpisodeData, feeds::FeedMeta};
@@ -53,16 +54,16 @@ pub enum Message {
     DownloadEpisode(i32),
     PlayEpisode(i32),
     DeleteEpisode(i32),
-    ConfigLoaded(Result<CastironConfig, String>),
     FeedsLoaded(Result<Vec<FeedMeta>, String>),
     EpisodesLoaded(Result<Option<Vec<EpisodeData>>, String>),
     EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
     EpisodeDownloaded(Result<(), String>),
     FeedToAddUpdated(String),
-    PlayerProgressed,
     PlayerMessage(PlayerMessage),
     PodQueueMessage(PodQueueMessage),
     ThemeChanged(Theme),
+    InitComplete,
+    InitFailed,
 }
 
 #[derive(Debug, Clone)]
@@ -74,22 +75,64 @@ pub enum PodQueueMessage {
 
 impl Castiron {
     fn new() -> Self {
+        // TODO: move to init Task, create return struct to pass in message
+        let config = load_or_create_config();
+        let feeds = get_feed_list_database();
+        let episodes = get_episode_list_database();
         Self {
             app_view: AppView::Feeds,
-            feeds: FeedList::new(Vec::new()),
-            episodes: EpisodeList::new(Vec::new()),
+            feeds: match feeds {
+                Ok(list) => FeedList::new(
+                    list.iter()
+                        .map(|n| match &n.image_file_path {
+                            Some(file_path) => match &n.feed_title {
+                                Some(feed_title) => {
+                                    Feed::new(n.id, feed_title.to_owned(), file_path.to_owned())
+                                }
+                                None => {
+                                    Feed::new(n.id, n.feed_url.to_owned(), file_path.to_owned())
+                                }
+                            },
+                            None => Feed::new(n.id, Default::default(), Default::default()),
+                        })
+                        .collect(),
+                ),
+                Err(_) => FeedList::new(Vec::new()),
+            },
+            episodes: match episodes {
+                Ok(found) => EpisodeList::new(
+                    found
+                        .iter()
+                        .map(|n| {
+                            Episode::new(
+                                n.id,
+                                n.feed_id,
+                                n.guid.to_owned(),
+                                n.title.to_owned(),
+                                n.downloaded,
+                                AppView::Episodes,
+                            )
+                        })
+                        .collect(),
+                ),
+                Err(_) => EpisodeList::new(Vec::new()),
+            },
             episodes_for_show: EpisodeList::new(Vec::new()),
-            castiron_config: None,
+            castiron_config: match &config {
+                Ok(conf) => Some(Config {
+                    values: conf.to_owned(),
+                    theme: convert_theme_string_to_enum(conf.to_owned().theme),
+                }),
+                Err(_) => None,
+            },
             feed_to_add: String::new(),
             player: Player::new(None),
             queue: Vec::new(),
-            theme: Theme::default(),
+            theme: match config {
+                Ok(conf) => convert_theme_string_to_enum(conf.theme),
+                Err(_) => Theme::default(),
+            },
         }
-        // Command::batch([
-        //     Command::perform(Config::load_config(), Message::ConfigLoaded),
-        //     Command::perform(FeedList::load_feeds(), Message::FeedsLoaded),
-        //     Command::perform(EpisodeList::load_episodes(), Message::EpisodesLoaded),
-        // ]),
     }
 
     pub fn update_queue(&mut self) {
@@ -130,7 +173,7 @@ impl Castiron {
                 col.push(
                     row![
                         content.view(),
-                        container(column![
+                        column![
                             button(text("Move Up"))
                                 .on_press(Message::PodQueueMessage(
                                     PodQueueMessage::MoveToPosition(
@@ -155,29 +198,22 @@ impl Castiron {
                                 ))
                                 .width(100)
                                 .height(Length::Fill)
-                        ])
-                        .height(Length::Fill)
-                        .align_y(Vertical::Center)
+                        ]
                     ]
                     .height(100),
                 )
             });
-        Scrollable::new(container(column).align_x(Horizontal::Center))
+        Scrollable::new(column)
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
     }
 
-    fn title(&self) -> String {
-        String::from("Castiron")
-    }
-
-    fn theme(&self) -> Theme {
-        self.theme.clone()
-    }
-
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            // TOOD: implement state and UI for loading until init complete
+            Message::InitComplete => Task::none(),
+            Message::InitFailed => Task::none(),
             Message::FeedsLoaded(feeds) => match feeds {
                 Err(_) => Task::none(),
                 Ok(data) => {
@@ -280,14 +316,6 @@ impl Castiron {
                     ])
                 }
             },
-            Message::ConfigLoaded(config) => match config {
-                Err(_) => Task::none(),
-                Ok(data) => {
-                    self.theme = convert_theme_string_to_enum(data.theme.clone());
-                    self.castiron_config = Some(Config::new(data, self.theme.clone()));
-                    Task::none()
-                }
-            },
             Message::ViewEpisodes => {
                 self.app_view = AppView::Episodes;
                 Task::none()
@@ -379,6 +407,28 @@ impl Castiron {
                 Task::none()
             }
             Message::PlayerMessage(message) => {
+                match message {
+                    PlayerMessage::Progress => match &self.player.sink {
+                        Some(sink) => match sink.empty() {
+                            true => {
+                                let episode_id = match self.queue.get(0) {
+                                    Some(episode) => Some(episode.id),
+                                    None => None,
+                                };
+                                match episode_id {
+                                    Some(id) => {
+                                        self.player = Player::new(Some(id));
+                                        self.queue.remove(0);
+                                    }
+                                    None => {}
+                                };
+                            }
+                            false => {}
+                        },
+                        None => {}
+                    },
+                    _ => {}
+                };
                 self.player.update(message);
                 Task::none()
             }
@@ -436,33 +486,6 @@ impl Castiron {
                 }
                 Task::none()
             }
-            Message::PlayerProgressed => {
-                match &self.player.sink {
-                    Some(sink) => match sink.empty() {
-                        true => {
-                            let episode_id = match self.queue.get(0) {
-                                Some(episode) => Some(episode.id),
-                                None => None,
-                            };
-                            match episode_id {
-                                Some(id) => {
-                                    self.player = Player::new(Some(id));
-                                    self.queue.remove(0);
-                                }
-                                None => {}
-                            }
-                        }
-                        false => {
-                            // Get playhead from sink with get_pos
-                            let position = sink.get_pos();
-                            // Set progress in state
-                            self.player.progress = position.as_secs_f32();
-                        }
-                    },
-                    None => {}
-                }
-                Task::none()
-            }
             Message::ThemeChanged(theme) => {
                 match create_config(Some(CastironConfig {
                     theme: theme.to_string(),
@@ -484,9 +507,7 @@ impl Castiron {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch(vec![
-            time::every(Duration::from_millis(100)).map(|_| Message::PlayerProgressed)
-        ])
+        Subscription::batch(vec![self.player.subscription()])
     }
 
     pub fn view(&self) -> Element<Message> {

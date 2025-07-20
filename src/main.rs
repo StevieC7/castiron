@@ -3,19 +3,22 @@ mod networking;
 mod types;
 mod ui;
 
-use iced::application;
-use ui::gui::Castiron;
+use iced::{application, Task};
+use ui::gui::{Castiron, Message};
+
+use crate::file_handling::setup::init_fs_and_db;
 
 fn main() -> iced::Result {
-    // TODO: move into the application itself as tasks spawned at startup
-    // create_shows_directory_if_not_existing().await.unwrap();
-    // create_episodes_directory_if_not_existing().await.unwrap();
-    // create_thumbnails_directory_if_not_existing().await.unwrap();
-    // create_database_if_not_existing().await.unwrap();
-
     // TODO: fix styling / theming
-    // TODO: fix messages / tasks
     application("Castiron", Castiron::update, Castiron::view)
         .subscription(Castiron::subscription)
-        .run()
+        .run_with(|| {
+            (
+                Castiron::default(),
+                Task::perform(init_fs_and_db(), |res| match res {
+                    Ok(_) => Message::InitComplete,
+                    Err(_) => Message::InitFailed,
+                }),
+            )
+        })
 }

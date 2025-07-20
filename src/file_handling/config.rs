@@ -39,6 +39,20 @@ pub fn create_config(config: Option<CastironConfig>) -> Result<CastironConfig, C
     }
 }
 
+pub fn load_or_create_config() -> Result<CastironConfig, CustomError> {
+    let result = read_config();
+    match result {
+        Ok(conf) => Ok(conf),
+        Err(_) => {
+            let create_result = create_config(None);
+            match create_result {
+                Ok(new_conf) => Ok(new_conf),
+                Err(e) => Err(e),
+            }
+        }
+    }
+}
+
 pub fn convert_theme_string_to_enum(theme: String) -> Theme {
     if theme == Theme::Light.to_string() {
         Theme::Light
