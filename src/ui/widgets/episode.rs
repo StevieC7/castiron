@@ -59,19 +59,27 @@ impl Episode {
             },
             false => row!(button(text("Download")).on_press(Message::DownloadEpisode(self.id)),),
         };
-        container(row!(
-            match &self.image_handle {
-                Some(handle) => image(handle).height(100),
-                None => image(""),
-            },
-            text(self.title.to_owned()).width(300),
-            action_container
-        ))
-        .width(Length::Shrink)
-        .max_width(600)
-        .padding(20)
-        .center_y(Length::Shrink)
-        .into()
+        match &self.image_handle {
+            Some(handle) => container(row!(
+                image(handle).height(100),
+                text(self.title.to_owned()).width(300),
+                action_container
+            ))
+            .width(Length::Shrink)
+            .max_width(600)
+            .padding(20)
+            .center_y(Length::Shrink)
+            .into(),
+            None => container(row!(
+                text(self.title.to_owned()).width(300),
+                action_container
+            ))
+            .width(Length::Shrink)
+            .max_width(600)
+            .padding(20)
+            .center_y(Length::Shrink)
+            .into(),
+        }
     }
 
     pub async fn download_single_episode(id: i32) -> Result<(), String> {

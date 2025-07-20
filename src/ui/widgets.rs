@@ -3,6 +3,7 @@ pub mod feed;
 
 use iced::alignment::Horizontal;
 use iced::time;
+use iced::widget::progress_bar::Style;
 use rodio::{Decoder, Source};
 use std::fs::File;
 use std::io::BufReader;
@@ -341,7 +342,14 @@ impl Player {
                 title,
                 button(text("Play")).on_press(Message::PlayerMessage(PlayerMessage::Play)),
                 button(text("Pause")).on_press(Message::PlayerMessage(PlayerMessage::Pause)),
-                progress_bar(0.0..=self.duration_seconds, self.progress)
+                progress_bar(0.0..=self.duration_seconds, self.progress).style(|theme: &Theme| {
+                    let foo = theme.palette();
+                    Style {
+                        background: iced::Background::Color(foo.text),
+                        bar: iced::Background::Color(foo.success),
+                        border: iced::Border::default(),
+                    }
+                })
             )
             .spacing(10),
         )
