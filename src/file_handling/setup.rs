@@ -40,6 +40,7 @@ fn create_database_if_not_existing() -> Result<(), CustomError> {
         CREATE TABLE IF NOT EXISTS feeds(id INTEGER PRIMARY KEY, url TEXT NOT NULL, xml_file_path TEXT, feed_title TEXT, image_file_path TEXT);
         CREATE TABLE IF NOT EXISTS episodes(id INTEGER PRIMARY KEY, guid TEXT, title TEXT, date DATE, played BOOLEAN, played_seconds INTEGER, file_name TEXT, url TEXT, feed_id INTEGER, downloaded BOOLEAN);
         CREATE UNIQUE INDEX IF NOT EXISTS guid_feed_id ON episodes (guid,feed_id);
+        CREATE TABLE IF NOT EXISTS queue(id INTEGER PRIMARY KEY, episodes JSON);
         ");
     connection.execute(query)?;
     Ok(())

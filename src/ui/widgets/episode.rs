@@ -6,6 +6,7 @@ use iced::{
     Element, Length, Renderer, Theme,
 };
 
+// TODO: implement download progress indicator
 pub struct Episode {
     pub id: i32,
     pub feed_id: i32,

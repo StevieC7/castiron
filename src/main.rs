@@ -11,8 +11,9 @@ use crate::file_handling::setup::init_fs_and_db;
 fn main() -> iced::Result {
     // TODO: fix styling / theming
     application("Castiron", Castiron::update, Castiron::view)
-        .subscription(Castiron::subscription)
         .theme(Castiron::theme)
+        .subscription(Castiron::subscription)
+        .exit_on_close_request(false)
         .run_with(|| {
             (
                 Castiron::default(),

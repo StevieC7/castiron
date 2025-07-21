@@ -5,7 +5,7 @@ use iced::{
     widget::{
         button, column, container, row, text, text_input, vertical_space, Column, Rule, Scrollable,
     },
-    Alignment, Element, Length, Subscription, Task, Theme,
+    window, Alignment, Element, Length, Subscription, Task, Theme,
 };
 
 use super::widgets::{
@@ -27,6 +27,7 @@ use crate::{
             add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
             get_feed_list_database,
         },
+        queue::{get_queue_database, save_queue},
     },
     types::{config::CastironConfig, episodes::Episode as EpisodeData, feeds::FeedMeta},
 };
@@ -74,6 +75,7 @@ pub enum Message {
     ThemeChanged(Theme),
     InitComplete,
     InitFailed,
+    HandleClose,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +91,7 @@ impl Castiron {
         let config = load_or_create_config();
         let feeds = get_feed_list_database();
         let episodes = get_episode_list_database();
+        let queue = get_queue_database();
         Self {
             app_view: AppView::Feeds,
             feeds: match feeds {
@@ -149,7 +152,30 @@ impl Castiron {
             },
             feed_to_add: String::new(),
             player: Player::new(None),
-            queue: Vec::new(),
+            queue: match queue {
+                Ok(found) => found
+                    .iter()
+                    .map(|e| {
+                        let handle = match get_feed_by_id(e.feed_id) {
+                            Ok(feed) => match feed.image_file_path {
+                                Some(path) => Some(Handle::from_path(path)),
+                                None => None,
+                            },
+                            Err(_) => None,
+                        };
+                        Episode::new(
+                            e.id,
+                            e.feed_id,
+                            e.guid.to_owned(),
+                            e.title.to_owned(),
+                            e.downloaded,
+                            AppView::Queue,
+                            handle,
+                        )
+                    })
+                    .collect(),
+                Err(_) => Vec::new(),
+            },
             theme: match config {
                 Ok(conf) => convert_theme_string_to_enum(conf.theme),
                 Err(_) => Theme::default(),
@@ -256,6 +282,11 @@ impl Castiron {
             // TOOD: implement state and UI for loading until init complete
             Message::InitComplete => Task::none(),
             Message::InitFailed => Task::none(),
+            Message::HandleClose => {
+                let ids = self.queue.iter().map(|n| n.id).collect();
+                save_queue(ids).unwrap();
+                window::get_latest().and_then(window::close)
+            }
             Message::FeedsLoaded(feeds) => match feeds {
                 Err(_) => Task::none(),
                 Ok(data) => {
@@ -594,7 +625,10 @@ impl Castiron {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch(vec![self.player.subscription()])
+        Subscription::batch(vec![
+            self.player.subscription(),
+            window::close_requests().map(|_| Message::HandleClose),
+        ])
     }
 
     pub fn view(&self) -> Element<Message> {
