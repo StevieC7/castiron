@@ -12,7 +12,8 @@ pub fn save_queue(queue: Vec<i32>) -> Result<(), CustomError> {
         Some(q) => {
             let query = format!(
                 "
-                INSERT INTO queue (episodes) VALUES (json_array({q}))
+                DELETE FROM queue;
+                INSERT INTO queue (episodes) VALUES (json_array({q}));
             "
             );
             let connection = open(Path::new("./database.sqlite"))?;
@@ -25,16 +26,13 @@ pub fn save_queue(queue: Vec<i32>) -> Result<(), CustomError> {
         })),
     }
 }
-// TODO: call this on application load
+
 pub fn get_queue_database() -> Result<Vec<Episode>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query =
         "SELECT * FROM episodes WHERE id IN (SELECT value FROM queue, json_each(queue.episodes));";
     let mut queue: Vec<Episode> = Vec::new();
-    match connection.iterate(query, |n| select_all_callback(n, &mut queue)) {
-        Ok(_) => println!("successful get queue operation"),
-        Err(e) => println!("{:?}", e),
-    };
+    connection.iterate(query, |n| select_all_callback(n, &mut queue))?;
     Ok(queue)
 }
 
