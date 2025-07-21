@@ -9,7 +9,6 @@ use ui::gui::{Castiron, Message};
 use crate::file_handling::setup::init_fs_and_db;
 
 fn main() -> iced::Result {
-    // TODO: fix styling / theming
     application("Castiron", Castiron::update, Castiron::view)
         .theme(Castiron::theme)
         .subscription(Castiron::subscription)
@@ -18,7 +17,7 @@ fn main() -> iced::Result {
             (
                 Castiron::default(),
                 Task::perform(init_fs_and_db(), |res| match res {
-                    Ok(_) => Message::InitComplete,
+                    Ok(init_data) => Message::InitComplete(init_data),
                     Err(_) => Message::InitFailed,
                 }),
             )

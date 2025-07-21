@@ -2,7 +2,6 @@ use crate::types::{episodes::Episode, errors::CustomError};
 use sqlite::{open, Error};
 use std::path::Path;
 
-// TODO: decide when to call this
 pub fn save_queue(queue: Vec<i32>) -> Result<(), CustomError> {
     let queue_string = queue.iter().map(|q| q.to_string()).reduce(|mut acc, s| {
         acc.push_str(String::from(format!(",{id}", id = s)).as_str());
@@ -37,7 +36,6 @@ pub fn get_queue_database() -> Result<Vec<Episode>, CustomError> {
 }
 
 fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) -> bool {
-    println!("thing: {:?}", n);
     let mut result_tuple: Episode = Episode {
         id: 0,
         guid: String::new(),
@@ -158,4 +156,3 @@ fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) 
     episodes.push(result_tuple);
     true
 }
-// TODO: implement a cleanup function to wipe previous queues

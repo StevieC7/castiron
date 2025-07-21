@@ -2,7 +2,13 @@ use sqlite::open;
 use std::{fs::create_dir, path::Path};
 // use tokio::fs::create_dir;
 
-use crate::{file_handling::config::load_or_create_config, types::errors::CustomError};
+use crate::{
+    file_handling::{
+        config::load_or_create_config, episodes::get_episode_list_database,
+        feeds::get_feed_list_database, queue::get_queue_database,
+    },
+    types::{config::CastironConfig, episodes::Episode, errors::CustomError, feeds::FeedMeta},
+};
 
 fn create_shows_directory_if_not_existing() -> Result<(), CustomError> {
     match Path::new("./shows").exists() {
@@ -46,16 +52,30 @@ fn create_database_if_not_existing() -> Result<(), CustomError> {
     Ok(())
 }
 
-fn load_existing_user_state() -> Result<(), CustomError> {
-    load_or_create_config()?;
-    Ok(())
+fn load_existing_user_state() -> Result<InitData, CustomError> {
+    let config = load_or_create_config()?;
+    let feeds = get_feed_list_database()?;
+    let episodes = get_episode_list_database()?;
+    let queue = get_queue_database()?;
+    Ok(InitData {
+        config,
+        feeds,
+        episodes,
+        queue,
+    })
 }
-
-pub async fn init_fs_and_db() -> Result<(), CustomError> {
+#[derive(Debug, Clone)]
+pub struct InitData {
+    pub config: CastironConfig,
+    pub feeds: Vec<FeedMeta>,
+    pub episodes: Vec<Episode>,
+    pub queue: Vec<Episode>,
+}
+pub async fn init_fs_and_db() -> Result<InitData, CustomError> {
     create_shows_directory_if_not_existing()?;
     create_episodes_directory_if_not_existing()?;
     create_thumbnails_directory_if_not_existing()?;
     create_database_if_not_existing()?;
-    load_existing_user_state()?;
-    Ok(())
+    let init_data = load_existing_user_state()?;
+    Ok(init_data)
 }

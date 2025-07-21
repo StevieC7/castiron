@@ -28,6 +28,7 @@ use crate::{
             get_feed_list_database,
         },
         queue::{get_queue_database, save_queue},
+        setup::InitData,
     },
     types::{config::CastironConfig, episodes::Episode as EpisodeData, feeds::FeedMeta},
 };
@@ -50,6 +51,7 @@ pub enum AppView {
     EpisodesForShow(i32),
     Config,
     Queue,
+    Init,
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +75,7 @@ pub enum Message {
     PlayerMessage(PlayerMessage),
     PodQueueMessage(PodQueueMessage),
     ThemeChanged(Theme),
-    InitComplete,
+    InitComplete(InitData),
     InitFailed,
     HandleClose,
 }
@@ -87,99 +89,16 @@ pub enum PodQueueMessage {
 
 impl Castiron {
     fn new() -> Self {
-        // TODO: move to init Task, create return struct to pass in message
-        let config = load_or_create_config();
-        let feeds = get_feed_list_database();
-        let episodes = get_episode_list_database();
-        let queue = get_queue_database();
         Self {
-            app_view: AppView::Feeds,
-            feeds: match feeds {
-                Ok(list) => FeedList::new(
-                    list.iter()
-                        .map(|n| match &n.image_file_path {
-                            Some(file_path) => match &n.feed_title {
-                                Some(feed_title) => Feed::new(
-                                    n.id,
-                                    feed_title.to_owned(),
-                                    Some(Handle::from_path(file_path.to_owned())),
-                                ),
-                                None => Feed::new(
-                                    n.id,
-                                    n.feed_url.to_owned(),
-                                    Some(Handle::from_path(file_path.to_owned())),
-                                ),
-                            },
-                            None => Feed::new(n.id, Default::default(), Default::default()),
-                        })
-                        .collect(),
-                ),
-                Err(_) => FeedList::new(Vec::new()),
-            },
-            episodes: match episodes {
-                Ok(found) => EpisodeList::new(
-                    found
-                        .iter()
-                        .map(|n| {
-                            let handle = match get_feed_by_id(n.feed_id) {
-                                Ok(feed) => match feed.image_file_path {
-                                    Some(path) => Some(Handle::from_path(path)),
-                                    None => None,
-                                },
-                                Err(_) => None,
-                            };
-                            Episode::new(
-                                n.id,
-                                n.feed_id,
-                                n.guid.to_owned(),
-                                n.title.to_owned(),
-                                n.downloaded,
-                                AppView::Episodes,
-                                handle,
-                            )
-                        })
-                        .collect(),
-                ),
-                Err(_) => EpisodeList::new(Vec::new()),
-            },
+            app_view: AppView::Init,
+            feeds: FeedList::new(Vec::new()),
+            episodes: EpisodeList::new(Vec::new()),
             episodes_for_show: EpisodeList::new(Vec::new()),
-            castiron_config: match &config {
-                Ok(conf) => Some(Config {
-                    values: conf.to_owned(),
-                    theme: convert_theme_string_to_enum(conf.to_owned().theme),
-                }),
-                Err(_) => None,
-            },
+            castiron_config: None,
             feed_to_add: String::new(),
             player: Player::new(None),
-            queue: match queue {
-                Ok(found) => found
-                    .iter()
-                    .map(|e| {
-                        let handle = match get_feed_by_id(e.feed_id) {
-                            Ok(feed) => match feed.image_file_path {
-                                Some(path) => Some(Handle::from_path(path)),
-                                None => None,
-                            },
-                            Err(_) => None,
-                        };
-                        Episode::new(
-                            e.id,
-                            e.feed_id,
-                            e.guid.to_owned(),
-                            e.title.to_owned(),
-                            e.downloaded,
-                            AppView::Queue,
-                            handle,
-                        )
-                    })
-                    .collect(),
-                Err(_) => Vec::new(),
-            },
-            theme: match config {
-                Ok(conf) => convert_theme_string_to_enum(conf.theme),
-                Err(_) => Theme::default(),
-            },
+            queue: Vec::new(),
+            theme: Theme::default(),
         }
     }
 
@@ -280,7 +199,82 @@ impl Castiron {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             // TOOD: implement state and UI for loading until init complete
-            Message::InitComplete => Task::none(),
+            Message::InitComplete(init_data) => {
+                self.feeds = FeedList::new(
+                    init_data
+                        .feeds
+                        .iter()
+                        .map(|n| match &n.image_file_path {
+                            Some(file_path) => match &n.feed_title {
+                                Some(feed_title) => Feed::new(
+                                    n.id,
+                                    feed_title.to_owned(),
+                                    Some(Handle::from_path(file_path.to_owned())),
+                                ),
+                                None => Feed::new(
+                                    n.id,
+                                    n.feed_url.to_owned(),
+                                    Some(Handle::from_path(file_path.to_owned())),
+                                ),
+                            },
+                            None => Feed::new(n.id, Default::default(), Default::default()),
+                        })
+                        .collect(),
+                );
+                self.episodes = EpisodeList::new(
+                    init_data
+                        .episodes
+                        .iter()
+                        .map(|n| {
+                            let handle = match get_feed_by_id(n.feed_id) {
+                                Ok(feed) => match feed.image_file_path {
+                                    Some(path) => Some(Handle::from_path(path)),
+                                    None => None,
+                                },
+                                Err(_) => None,
+                            };
+                            Episode::new(
+                                n.id,
+                                n.feed_id,
+                                n.guid.to_owned(),
+                                n.title.to_owned(),
+                                n.downloaded,
+                                AppView::Episodes,
+                                handle,
+                            )
+                        })
+                        .collect(),
+                );
+                self.castiron_config = Some(Config {
+                    values: init_data.config.to_owned(),
+                    theme: convert_theme_string_to_enum(init_data.config.to_owned().theme),
+                });
+                self.queue = init_data
+                    .queue
+                    .iter()
+                    .map(|e| {
+                        let handle = match get_feed_by_id(e.feed_id) {
+                            Ok(feed) => match feed.image_file_path {
+                                Some(path) => Some(Handle::from_path(path)),
+                                None => None,
+                            },
+                            Err(_) => None,
+                        };
+                        Episode::new(
+                            e.id,
+                            e.feed_id,
+                            e.guid.to_owned(),
+                            e.title.to_owned(),
+                            e.downloaded,
+                            AppView::Queue,
+                            handle,
+                        )
+                    })
+                    .collect();
+                self.theme = convert_theme_string_to_enum(init_data.config.theme);
+                self.app_view = AppView::Feeds;
+                Task::none()
+            }
             Message::InitFailed => Task::none(),
             Message::HandleClose => {
                 let ids = self.queue.iter().map(|n| n.id).collect();
@@ -665,53 +659,64 @@ impl Castiron {
                     .center_x(Length::Fill)
                     .into(),
             },
+            AppView::Init => container(text("Loading..."))
+                .padding(20)
+                .center_x(Length::Fill)
+                .into(),
         };
-        column![
-            container(row![
-                container(
-                    column![
-                        button(text("Feeds"))
-                            .on_press(Message::ViewFeeds)
-                            .padding(10)
-                            .width(Length::Fill),
-                        Rule::horizontal(1),
-                        button(text("Episodes"))
-                            .on_press(Message::ViewEpisodes)
-                            .padding(10)
-                            .width(Length::Fill),
-                        Rule::horizontal(1),
-                        button(text("Queue"))
-                            .on_press(Message::ViewQueue)
-                            .padding(10)
-                            .width(Length::Fill),
-                        Rule::horizontal(1),
-                        button(text("Config"))
-                            .on_press(Message::ViewConfig)
-                            .padding(10)
-                            .width(Length::Fill),
+        match self.app_view {
+            AppView::Init => container(text("Loading..."))
+                .padding(20)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .into(),
+            _ => column![
+                container(row![
+                    container(
                         column![
-                            text_input("add feed", self.feed_to_add.as_str())
-                                .on_input(Message::FeedToAddUpdated)
-                                .width(Length::Fill),
-                            button(text("Add"))
-                                .on_press(Message::AddFeed)
+                            button(text("Feeds"))
+                                .on_press(Message::ViewFeeds)
                                 .padding(10)
                                 .width(Length::Fill),
-                        ],
-                        button(text("Sync"))
-                            .on_press(Message::SyncEpisodes)
-                            .padding(10)
-                            .width(Length::Fill),
-                        vertical_space(),
-                    ]
-                    .width(300)
-                    .align_x(Alignment::Center),
-                ),
-                main_content
-            ]),
-            self.player.view()
-        ]
-        .into()
+                            Rule::horizontal(1),
+                            button(text("Episodes"))
+                                .on_press(Message::ViewEpisodes)
+                                .padding(10)
+                                .width(Length::Fill),
+                            Rule::horizontal(1),
+                            button(text("Queue"))
+                                .on_press(Message::ViewQueue)
+                                .padding(10)
+                                .width(Length::Fill),
+                            Rule::horizontal(1),
+                            button(text("Config"))
+                                .on_press(Message::ViewConfig)
+                                .padding(10)
+                                .width(Length::Fill),
+                            column![
+                                text_input("add feed", self.feed_to_add.as_str())
+                                    .on_input(Message::FeedToAddUpdated)
+                                    .width(Length::Fill),
+                                button(text("Add"))
+                                    .on_press(Message::AddFeed)
+                                    .padding(10)
+                                    .width(Length::Fill),
+                            ],
+                            button(text("Sync"))
+                                .on_press(Message::SyncEpisodes)
+                                .padding(10)
+                                .width(Length::Fill),
+                            vertical_space(),
+                        ]
+                        .width(300)
+                        .align_x(Alignment::Center),
+                    ),
+                    main_content
+                ]),
+                self.player.view()
+            ]
+            .into(),
+        }
     }
 
     pub fn theme(&self) -> Theme {
