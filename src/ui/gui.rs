@@ -18,21 +18,16 @@ use super::widgets::{
 };
 use crate::{
     file_handling::{
-        config::{convert_theme_string_to_enum, create_config, load_or_create_config},
-        episodes::{
-            delete_episode_from_fs, get_episode_by_id, get_episode_list_database,
-            get_episodes_by_feed_id,
-        },
-        feeds::{
-            add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id,
-            get_feed_list_database,
-        },
-        queue::{get_queue_database, save_queue},
+        config::{convert_theme_string_to_enum, create_config},
+        episodes::{delete_episode_from_fs, get_episode_by_id, get_episodes_by_feed_id},
+        feeds::{add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id},
+        queue::save_queue,
         setup::InitData,
     },
     types::{config::CastironConfig, episodes::Episode as EpisodeData, feeds::FeedMeta},
 };
 
+// TODO: convert all view-dependent state to Option type, populate only when view selected
 pub struct Castiron {
     app_view: AppView,
     feeds: FeedList,
@@ -196,9 +191,10 @@ impl Castiron {
             .into()
     }
 
+    // TODO: organize state and messages better
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            // TOOD: implement state and UI for loading until init complete
+            // TODO: only load the data for the AppView::Init until another view selected
             Message::InitComplete(init_data) => {
                 self.feeds = FeedList::new(
                     init_data
