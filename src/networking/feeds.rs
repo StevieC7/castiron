@@ -164,3 +164,14 @@ pub fn parse_file_extension_from_image_url(url: &str) -> Result<String, CustomEr
         .unwrap_or("jpg")
         .to_string())
 }
+
+pub async fn sync_episodes() -> Result<Option<Vec<Episode>>, String> {
+    let result = sync_episode_list().await;
+    match result {
+        Ok(res) => match res {
+            Some(val) => Ok(Some(val)),
+            None => Ok(None),
+        },
+        Err(e) => Err(String::from(format!("Error syncing episodes: {:?}", e))),
+    }
+}

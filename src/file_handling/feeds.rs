@@ -187,6 +187,17 @@ pub fn load_feed_xml(xml_file_path: String) -> Result<String, IOError> {
     Ok(data)
 }
 
+pub async fn load_feeds() -> Result<Vec<FeedMeta>, String> {
+    let result = get_feed_list_database();
+    match result {
+        Ok(res) => Ok(res),
+        Err(e) => Err(String::from(format!(
+            "Error fetching feeds from database: {:?}",
+            e
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

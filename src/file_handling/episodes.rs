@@ -227,6 +227,16 @@ fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) 
     true
 }
 
+pub async fn load_episodes() -> Result<Option<Vec<Episode>>, String> {
+    match get_episode_list_database() {
+        Ok(data) => Ok(Some(data)),
+        Err(e) => Err(String::from(format!(
+            "Error fetching episodes from database: {:?}",
+            e
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs::{copy, remove_file};
