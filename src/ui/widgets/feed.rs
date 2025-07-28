@@ -15,7 +15,7 @@ pub struct Feed {
 pub enum Message {
     UnfollowFeed(i32),
     ViewEpisodesForShow(i32),
-    ImageLoaded(Option<Handle>),
+    ImageLoaded(i32, Option<Handle>),
 }
 
 impl Feed {
@@ -37,19 +37,25 @@ impl Feed {
                         None => None,
                     }
                 },
-                |handle| Message::ImageLoaded(handle),
+                move |handle| Message::ImageLoaded(id, handle),
             ),
         )
     }
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ImageLoaded(handle) => match handle {
-                Some(image_handle) => {
-                    self.image_handle = Some(image_handle);
+            Message::ImageLoaded(id, handle) => {
+                if id == self.id {
+                    match handle {
+                        Some(image_handle) => {
+                            self.image_handle = Some(image_handle);
+                            Task::none()
+                        }
+                        None => Task::none(),
+                    }
+                } else {
                     Task::none()
                 }
-                None => Task::none(),
-            },
+            }
             Message::UnfollowFeed(_id) => Task::none(),
             Message::ViewEpisodesForShow(_id) => Task::none(),
         }
