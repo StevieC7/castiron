@@ -1,7 +1,11 @@
 // use url::Url;
 
+use std::io::{BufReader, Read};
+
 use iced::{
     advanced::image::Handle,
+    futures::{channel::mpsc, channel::mpsc::Sender, SinkExt, Stream, StreamExt},
+    stream,
     widget::{
         button, column, container, row, text, text_input, vertical_space, Column, Rule, Scrollable,
     },
@@ -26,7 +30,7 @@ use crate::{
         queue::save_queue,
         setup::InitData,
     },
-    types::{config::CastironConfig, episodes::Episode as EpisodeData, feeds::FeedMeta},
+    types::{config::CastironConfig, episodes::EpisodeMeta as EpisodeData, feeds::FeedMeta},
     ui::widgets::{feed, feed_list},
 };
 
@@ -44,8 +48,8 @@ pub struct Castiron {
 
 pub enum AppView {
     Feeds(FeedList),
-    Episodes,
     EpisodesForShow(i32),
+    Episodes,
     Config,
     Queue,
     Init,
@@ -53,6 +57,9 @@ pub enum AppView {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    LoadImages,
+    ImageLoaderReady(mpsc::Sender<Message>),
+    ImagesLoading,
     FeedList(feed_list::Message),
     ViewEpisodes,
     ViewFeeds,
@@ -212,6 +219,10 @@ impl Castiron {
                     Message::FeedList(feed_list::Message::FeedsLoaded(res))
                 })
             }
+            Message::ImageLoaderReady(sender) => {
+                // TODO: fix
+                Task::perform(send_load_image_message(sender), |_| Message::ImagesLoading)
+            }
             _ => Task::none(),
         }
     }
@@ -219,6 +230,10 @@ impl Castiron {
     pub fn subscription(&self) -> Subscription<Message> {
         Subscription::batch(vec![
             self.player.subscription(),
+            match self.app_view {
+                AppView::Feeds(_) => Subscription::run(image_loader),
+                _ => Subscription::none(),
+            },
             window::close_requests().map(|_| Message::HandleClose),
         ])
     }
@@ -334,4 +349,63 @@ impl Default for Castiron {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn image_loader() -> impl Stream<Item = Message> {
+    stream::channel(256, |mut output| async move {
+        // Create channel
+        let (sender, mut receiver) = mpsc::channel(256);
+
+        // Send the sender back to the application
+        let _ = output.send(Message::ImageLoaderReady(sender)).await;
+
+        loop {
+            // Read next input sent from `Application`
+            let input = receiver.select_next_some().await;
+
+            match input {
+                // TODO: move this whole function to the main GUI file and create a message for invoking with specific list of images to load
+                Message::LoadImages => {
+                    // Do some async work...
+                    let feeds_meta = load_feeds().await.unwrap_or(Vec::new());
+                    for meta in feeds_meta {
+                        let FeedMeta {
+                            id,
+                            image_file_path,
+                            ..
+                        } = meta;
+                        if let Some(file_path) = image_file_path {
+                            let file = std::fs::File::open(file_path);
+                            match file {
+                                Ok(f) => {
+                                    let byte_collection: Result<Vec<u8>, std::io::Error> =
+                                        BufReader::new(f).bytes().collect();
+                                    match byte_collection {
+                                        Err(_) => todo!(),
+                                        Ok(bytes) => {
+                                            let _ = output
+                                                .send(Message::FeedList(
+                                                    feed_list::Message::ImageLoaded(id, bytes),
+                                                ))
+                                                .await;
+                                        }
+                                    }
+                                }
+                                Err(_) => {
+                                    let _ = output
+                                        .send(Message::FeedList(feed_list::Message::ImageFail))
+                                        .await;
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    })
+}
+
+async fn send_load_image_message(mut sender: Sender<Message>) {
+    let _ = sender.send(Message::LoadImages).await;
 }

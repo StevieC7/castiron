@@ -9,7 +9,7 @@ use crate::{
             update_thumbnail_file_path,
         },
     },
-    types::{episodes::Episode, errors::CustomError, feeds::FeedMeta},
+    types::{episodes::EpisodeMeta, errors::CustomError, feeds::FeedMeta},
 };
 
 use bytes::Bytes;
@@ -24,11 +24,11 @@ use url::{Position, Url};
 
 use super::downloads::{check_thumbnail_exists, download_feed_thumbnail};
 
-pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
+pub async fn sync_episode_list() -> Result<Option<Vec<EpisodeMeta>>, CustomError> {
     update_feeds().await?;
     mark_episodes_deleted_if_file_nonexistent()?;
     let feed_collection = get_feed_list_database()?;
-    let mut episodes: Vec<Episode> = Vec::new();
+    let mut episodes: Vec<EpisodeMeta> = Vec::new();
     for feed in feed_collection {
         let content = load_feed_xml(feed.xml_file_path.unwrap_or(String::new()))?;
         let feed_contents = content.as_str();
@@ -89,7 +89,7 @@ pub async fn sync_episode_list() -> Result<Option<Vec<Episode>>, CustomError> {
                                     Some(_) => format!("{guid}.mp3"),
                                     None => "fail.mp3".to_string(),
                                 };
-                                episodes.push(Episode {
+                                episodes.push(EpisodeMeta {
                                     id: 0,
                                     guid: guid.to_string(),
                                     file_name,
@@ -165,7 +165,7 @@ pub fn parse_file_extension_from_image_url(url: &str) -> Result<String, CustomEr
         .to_string())
 }
 
-pub async fn sync_episodes() -> Result<Option<Vec<Episode>>, String> {
+pub async fn sync_episodes() -> Result<Option<Vec<EpisodeMeta>>, String> {
     let result = sync_episode_list().await;
     match result {
         Ok(res) => match res {

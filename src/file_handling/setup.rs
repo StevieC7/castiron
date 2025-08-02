@@ -7,7 +7,7 @@ use crate::{
         config::load_or_create_config, episodes::get_episode_list_database,
         feeds::get_feed_list_database, queue::get_queue_database,
     },
-    types::{config::CastironConfig, episodes::Episode, errors::CustomError, feeds::FeedMeta},
+    types::{config::CastironConfig, episodes::EpisodeMeta, errors::CustomError, feeds::FeedMeta},
 };
 
 fn create_shows_directory_if_not_existing() -> Result<(), CustomError> {
@@ -68,8 +68,8 @@ fn load_existing_user_state() -> Result<InitData, CustomError> {
 pub struct InitData {
     pub config: CastironConfig,
     pub feeds: Vec<FeedMeta>,
-    pub episodes: Vec<Episode>,
-    pub queue: Vec<Episode>,
+    pub episodes: Vec<EpisodeMeta>,
+    pub queue: Vec<EpisodeMeta>,
 }
 pub async fn init_fs_and_db() -> Result<InitData, CustomError> {
     create_shows_directory_if_not_existing()?;

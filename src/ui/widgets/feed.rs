@@ -1,7 +1,7 @@
 use iced::{
     advanced::image::Handle,
     widget::{button, container, image, row, text},
-    Element, Length,
+    Element, Length, Task,
 };
 
 #[derive(Debug, Clone)]
@@ -15,6 +15,7 @@ pub struct Feed {
 pub enum Message {
     UnfollowFeed(i32),
     ViewEpisodesForShow(i32),
+    ShowImage(Vec<u8>),
 }
 
 impl Feed {
@@ -25,10 +26,20 @@ impl Feed {
             image_handle,
         }
     }
+    pub fn update(&mut self, message: Message) -> Task<Message> {
+        match message {
+            Message::ShowImage(bytes) => {
+                let handle = Handle::from_bytes(bytes);
+                self.image_handle = Some(handle);
+                Task::none()
+            }
+            _ => Task::none(),
+        }
+    }
     pub fn view(&self) -> Element<Message> {
         if let Some(handle) = &self.image_handle {
             container(row!(
-                image(handle).height(50),
+                image(handle).height(50).width(50),
                 text(self.feed_title.to_owned()).width(Length::FillPortion(6)),
                 button(text("Unfollow"))
                     .on_press(Message::UnfollowFeed(self.id))

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::feed::{Feed, Message as FeedMessage};
-use crate::file_handling::feeds::{delete_associated_episodes_and_xml, get_feed_by_id, load_feeds};
+use crate::file_handling::feeds::{delete_associated_episodes_and_xml, load_feeds};
 use crate::types::feeds::FeedMeta;
 use iced::{
     advanced::image::Handle,
@@ -12,13 +12,15 @@ use iced::{
 
 pub struct FeedList {
     feeds: HashMap<i32, Feed>,
+    // TODO: add image data receiver to struct, invoke on every update
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     FeedMessage(FeedMessage),
     FeedsLoaded(Result<Vec<FeedMeta>, String>),
-    ImageLoaded(i32, Handle),
+    ImageLoaded(i32, Vec<u8>),
+    ImageFail,
 }
 
 impl FeedList {
@@ -37,7 +39,7 @@ impl FeedList {
                         Task::none()
                     }
                 },
-                FeedMessage::ViewEpisodesForShow(_id) => Task::none(),
+                _ => Task::none(),
             },
             Message::FeedsLoaded(list) => match list {
                 Err(_) => Task::none(),
@@ -45,51 +47,34 @@ impl FeedList {
                     0 => Task::none(),
                     _ => {
                         let mut hash: HashMap<i32, Feed> = HashMap::new();
-                        let mut task_batch: Vec<Task<Message>> = Vec::new();
                         data.into_iter().for_each(|n| {
                             let Some(feed_title) = &n.feed_title else {
                                 todo!()
                             };
                             let feed = Feed::new(n.id, feed_title.to_owned(), None);
                             hash.insert(n.id, feed);
-                            task_batch.push(Task::perform(
-                                async move {
-                                    (
-                                        n.id,
-                                        Handle::from_path(
-                                            n.image_file_path
-                                                .to_owned()
-                                                .unwrap_or(String::from("")),
-                                        ),
-                                    )
-                                },
-                                |(id, handle)| Message::ImageLoaded(id, handle),
-                            ));
                         });
                         self.feeds = hash;
-                        // NOW: fix this
-                        Task::batch(task_batch)
+                        Task::none()
                     }
                 },
             },
             Message::ImageLoaded(id, handle) => {
                 // TODO: initiate rebuild of affected feeds
-                let new_feed = get_feed_by_id(id);
-                match new_feed {
-                    Ok(meta) => {
-                        let replace_with = Feed::new(
-                            meta.id,
-                            meta.feed_title.unwrap_or(String::from("")),
-                            Some(handle),
-                        );
-                        self.feeds.insert(id, replace_with);
-                        Task::none()
+                let feed_to_update = self.feeds.get_mut(&id);
+                match feed_to_update {
+                    Some(feed) => {
+                        let _ = feed.update(FeedMessage::ShowImage(handle));
                     }
-                    Err(_) => Task::none(),
-                }
+                    None => {}
+                };
+                Task::none()
             }
+            // TODO: handle error gracefully
+            Message::ImageFail => Task::none(),
         }
     }
+
     pub fn view(&self) -> Element<Message> {
         if 0 == self.feeds.len() {
             container(text("You don't follow any feeds yet."))

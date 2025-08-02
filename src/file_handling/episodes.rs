@@ -1,10 +1,10 @@
-use crate::types::{episodes::Episode, errors::CustomError};
+use crate::types::{episodes::EpisodeMeta, errors::CustomError};
 use sqlite::{open, Error};
 use std::{fs::remove_file, path::Path};
 use time::{format_description::well_known::Rfc2822, OffsetDateTime};
 
-pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
-    let Episode {
+pub fn add_episode_to_database(episode: EpisodeMeta) -> Result<(), CustomError> {
+    let EpisodeMeta {
         guid,
         title,
         date,
@@ -27,18 +27,18 @@ pub fn add_episode_to_database(episode: Episode) -> Result<(), CustomError> {
     Ok(())
 }
 
-pub fn get_episode_list_database() -> Result<Vec<Episode>, CustomError> {
+pub fn get_episode_list_database() -> Result<Vec<EpisodeMeta>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = "SELECT * FROM episodes ORDER BY date DESC;";
-    let mut episodes: Vec<Episode> = Vec::new();
+    let mut episodes: Vec<EpisodeMeta> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
     Ok(episodes)
 }
 
-pub fn get_episode_by_id(id: i32) -> Result<Episode, CustomError> {
+pub fn get_episode_by_id(id: i32) -> Result<EpisodeMeta, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("SELECT * FROM episodes WHERE id = '{id}'");
-    let mut episodes: Vec<Episode> = Vec::new();
+    let mut episodes: Vec<EpisodeMeta> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
     match episodes.is_empty() {
         true => Err(CustomError::SqlError(Error {
@@ -49,10 +49,10 @@ pub fn get_episode_by_id(id: i32) -> Result<Episode, CustomError> {
     }
 }
 
-pub fn get_episodes_by_feed_id(feed_id: i32) -> Result<Vec<Episode>, CustomError> {
+pub fn get_episodes_by_feed_id(feed_id: i32) -> Result<Vec<EpisodeMeta>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("SELECT * FROM episodes WHERE feed_id = {feed_id} ORDER BY date DESC;");
-    let mut episodes: Vec<Episode> = Vec::new();
+    let mut episodes: Vec<EpisodeMeta> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
     Ok(episodes)
 }
@@ -89,7 +89,7 @@ pub fn delete_episode_from_fs(id: i32) -> Result<(), CustomError> {
 pub fn mark_episodes_deleted_if_file_nonexistent() -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = "SELECT * FROM episodes;";
-    let mut episodes: Vec<Episode> = Vec::new();
+    let mut episodes: Vec<EpisodeMeta> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
     for episode in episodes {
         match (
@@ -105,8 +105,8 @@ pub fn mark_episodes_deleted_if_file_nonexistent() -> Result<(), CustomError> {
     Ok(())
 }
 
-fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) -> bool {
-    let mut result_tuple: Episode = Episode {
+fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<EpisodeMeta>) -> bool {
+    let mut result_tuple: EpisodeMeta = EpisodeMeta {
         id: 0,
         guid: String::new(),
         title: String::new(),
@@ -227,7 +227,7 @@ fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) 
     true
 }
 
-pub async fn load_episodes() -> Result<Option<Vec<Episode>>, String> {
+pub async fn load_episodes() -> Result<Option<Vec<EpisodeMeta>>, String> {
     match get_episode_list_database() {
         Ok(data) => Ok(Some(data)),
         Err(e) => Err(String::from(format!(
@@ -251,7 +251,7 @@ mod tests {
             let copy_result = copy(&existing_db_file_path, &new_db_file).is_ok();
             let delete_old_result = remove_file(&existing_db_file_path).is_ok();
             if let true = copy_result & delete_old_result {
-                assert!(add_episode_to_database(Episode {
+                assert!(add_episode_to_database(EpisodeMeta {
                     id: 0,
                     date: String::from("2024/05/30"),
                     guid: String::from("jkdfjskluizuien1"),
@@ -277,7 +277,7 @@ mod tests {
                 panic!("Test failed due to test internals.")
             };
         } else {
-            assert!(add_episode_to_database(Episode {
+            assert!(add_episode_to_database(EpisodeMeta {
                 id: 0,
                 date: String::from("2024/05/30"),
                 guid: String::from("jkdfjskluizuien1"),

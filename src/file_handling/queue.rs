@@ -1,4 +1,4 @@
-use crate::types::{episodes::Episode, errors::CustomError};
+use crate::types::{episodes::EpisodeMeta, errors::CustomError};
 use sqlite::{open, Error};
 use std::path::Path;
 
@@ -26,17 +26,17 @@ pub fn save_queue(queue: Vec<i32>) -> Result<(), CustomError> {
     }
 }
 
-pub fn get_queue_database() -> Result<Vec<Episode>, CustomError> {
+pub fn get_queue_database() -> Result<Vec<EpisodeMeta>, CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query =
         "SELECT * FROM episodes WHERE id IN (SELECT value FROM queue, json_each(queue.episodes));";
-    let mut queue: Vec<Episode> = Vec::new();
+    let mut queue: Vec<EpisodeMeta> = Vec::new();
     connection.iterate(query, |n| select_all_callback(n, &mut queue))?;
     Ok(queue)
 }
 
-fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<Episode>) -> bool {
-    let mut result_tuple: Episode = Episode {
+fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<EpisodeMeta>) -> bool {
+    let mut result_tuple: EpisodeMeta = EpisodeMeta {
         id: 0,
         guid: String::new(),
         title: String::new(),
