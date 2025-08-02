@@ -7,7 +7,6 @@ use iced::{
 };
 
 // TODO: implement download progress indicator
-// TODO: look into optimizing image handling
 pub struct Episode {
     pub id: i32,
     pub feed_id: i32,

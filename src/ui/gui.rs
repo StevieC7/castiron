@@ -220,7 +220,6 @@ impl Castiron {
                 })
             }
             Message::ImageLoaderReady(sender) => {
-                // TODO: fix
                 Task::perform(send_load_image_message(sender), |_| Message::ImagesLoading)
             }
             _ => Task::none(),
@@ -364,7 +363,7 @@ fn image_loader() -> impl Stream<Item = Message> {
             let input = receiver.select_next_some().await;
 
             match input {
-                // TODO: move this whole function to the main GUI file and create a message for invoking with specific list of images to load
+                // TODO: update enum variant to accept list of images to load
                 Message::LoadImages => {
                     // Do some async work...
                     let feeds_meta = load_feeds().await.unwrap_or(Vec::new());

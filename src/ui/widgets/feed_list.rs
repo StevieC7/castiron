@@ -12,7 +12,6 @@ use iced::{
 
 pub struct FeedList {
     feeds: HashMap<i32, Feed>,
-    // TODO: add image data receiver to struct, invoke on every update
 }
 
 #[derive(Debug, Clone)]
@@ -60,7 +59,6 @@ impl FeedList {
                 },
             },
             Message::ImageLoaded(id, handle) => {
-                // TODO: initiate rebuild of affected feeds
                 let feed_to_update = self.feeds.get_mut(&id);
                 match feed_to_update {
                     Some(feed) => {
