@@ -227,9 +227,19 @@ fn select_all_callback(n: &[(&str, Option<&str>)], episodes: &mut Vec<EpisodeMet
     true
 }
 
-pub async fn load_episodes() -> Result<Option<Vec<EpisodeMeta>>, String> {
+pub async fn load_episodes() -> Result<Vec<EpisodeMeta>, String> {
     match get_episode_list_database() {
-        Ok(data) => Ok(Some(data)),
+        Ok(data) => Ok(data),
+        Err(e) => Err(String::from(format!(
+            "Error fetching episodes from database: {:?}",
+            e
+        ))),
+    }
+}
+
+pub async fn load_episodes_for_show(feed_id: i32) -> Result<Vec<EpisodeMeta>, String> {
+    match get_episodes_by_feed_id(feed_id) {
+        Ok(data) => Ok(data),
         Err(e) => Err(String::from(format!(
             "Error fetching episodes from database: {:?}",
             e

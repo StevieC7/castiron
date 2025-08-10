@@ -4,7 +4,6 @@ use super::feed::{Feed, Message as FeedMessage};
 use crate::file_handling::feeds::{delete_associated_episodes_and_xml, load_feeds};
 use crate::types::feeds::FeedMeta;
 use iced::{
-    advanced::image::Handle,
     alignment::Horizontal,
     widget::{column, container, text, Scrollable},
     Element, Length, Task,

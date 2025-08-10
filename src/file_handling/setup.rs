@@ -55,21 +55,21 @@ fn create_database_if_not_existing() -> Result<(), CustomError> {
 fn load_existing_user_state() -> Result<InitData, CustomError> {
     let config = load_or_create_config()?;
     let feeds = get_feed_list_database()?;
-    let episodes = get_episode_list_database()?;
-    let queue = get_queue_database()?;
+    // let episodes = get_episode_list_database()?;
+    // let queue = get_queue_database()?;
     Ok(InitData {
         config,
         feeds,
-        episodes,
-        queue,
+        // episodes,
+        // queue,
     })
 }
 #[derive(Debug, Clone)]
 pub struct InitData {
     pub config: CastironConfig,
     pub feeds: Vec<FeedMeta>,
-    pub episodes: Vec<EpisodeMeta>,
-    pub queue: Vec<EpisodeMeta>,
+    // pub episodes: Vec<EpisodeMeta>,
+    // pub queue: Vec<EpisodeMeta>,
 }
 pub async fn init_fs_and_db() -> Result<InitData, CustomError> {
     create_shows_directory_if_not_existing()?;

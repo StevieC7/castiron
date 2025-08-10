@@ -1,9 +1,11 @@
-use crate::networking::downloads::download_episode_by_guid;
-use crate::ui::gui::{AppView, Message, PodQueueMessage};
 use iced::{
     advanced::image::Handle,
     widget::{button, container, horizontal_space, image, row, text, Row},
-    Element, Length, Renderer, Theme,
+    Element, Length, Renderer, Task, Theme,
+};
+
+use crate::{
+    file_handling::episodes::delete_episode_from_fs, networking::downloads::download_episode_by_id,
 };
 
 // TODO: implement download progress indicator
@@ -13,8 +15,16 @@ pub struct Episode {
     pub guid: String,
     pub title: String,
     pub downloaded: bool,
-    pub viewing_from: AppView,
     pub image_handle: Option<Handle>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    Play,
+    Delete,
+    AddToQueue,
+    Download,
+    DownloadComplete,
 }
 
 impl Episode {
@@ -24,7 +34,6 @@ impl Episode {
         guid: String,
         title: String,
         downloaded: bool,
-        viewing_from: AppView,
         image_handle: Option<Handle>,
     ) -> Self {
         Self {
@@ -33,32 +42,53 @@ impl Episode {
             guid,
             title,
             downloaded,
-            viewing_from,
             image_handle,
         }
     }
+    pub fn update(&mut self, message: Message) -> Task<Message> {
+        match message {
+            Message::Delete => {
+                // TODO: handle failure properly
+                match delete_episode_from_fs(self.id) {
+                    Ok(_) => {
+                        self.downloaded = false;
+                        Task::none()
+                    }
+                    Err(_) => Task::none(),
+                }
+            }
+            Message::Download => {
+                Task::perform(download_episode_by_id(self.id), move |res| match res {
+                    Ok(_) => Message::DownloadComplete,
+                    Err(e) => {
+                        eprintln!("ERROR: {:?}", e);
+                        todo!()
+                    }
+                })
+            }
+            Message::DownloadComplete => {
+                self.downloaded = true;
+                Task::none()
+            }
+            _ => Task::none(),
+        }
+    }
+
     pub fn view(&self) -> Element<Message> {
         let action_container: Row<Message, Theme, Renderer> = match self.downloaded {
-            true => match self.viewing_from {
-                AppView::Queue => {
-                    row!(button(text("Play")).on_press(Message::PlayEpisode(self.id)))
-                }
-                _ => row!(
-                    button(text("Delete"))
-                        .on_press(Message::DeleteEpisode(self.id))
-                        .width(Length::FillPortion(3)),
-                    horizontal_space().width(Length::FillPortion(1)),
-                    button(text("Queue"))
-                        .on_press(Message::PodQueueMessage(PodQueueMessage::AddToQueue(
-                            self.id
-                        )))
-                        .width(Length::FillPortion(3)),
-                    button(text("Play"))
-                        .on_press(Message::PlayEpisode(self.id))
-                        .width(Length::FillPortion(3))
-                ),
-            },
-            false => row!(button(text("Download")).on_press(Message::DownloadEpisode(self.id)),),
+            true => row!(
+                button(text("Delete"))
+                    .on_press(Message::Delete)
+                    .width(Length::FillPortion(3)),
+                horizontal_space().width(Length::FillPortion(1)),
+                button(text("Queue"))
+                    .on_press(Message::AddToQueue)
+                    .width(Length::FillPortion(3)),
+                button(text("Play"))
+                    .on_press(Message::Play)
+                    .width(Length::FillPortion(3))
+            ),
+            false => row!(button(text("Download")).on_press(Message::Download)),
         };
         match &self.image_handle {
             Some(handle) => container(row!(
@@ -80,13 +110,6 @@ impl Episode {
             .padding(20)
             .center_y(Length::Shrink)
             .into(),
-        }
-    }
-
-    pub async fn download_single_episode(id: i32) -> Result<(), String> {
-        match download_episode_by_guid(id).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(String::from(format!("Error downloading episode: {:?}", e))),
         }
     }
 }
