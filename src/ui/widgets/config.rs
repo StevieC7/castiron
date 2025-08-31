@@ -1,4 +1,4 @@
-use crate::{types::config::CastironConfig, ui::gui::Message};
+use crate::types::config::CastironConfig;
 use iced::{
     widget::{container, horizontal_space, pick_list, row, text},
     Alignment, Element, Length, Theme,
@@ -8,6 +8,11 @@ use iced::{
 pub struct Config {
     pub values: CastironConfig,
     pub theme: Theme,
+}
+
+#[derive(Clone)]
+pub enum Message {
+    ThemeChanged(Theme),
 }
 
 impl Config {

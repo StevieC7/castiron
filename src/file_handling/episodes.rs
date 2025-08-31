@@ -57,6 +57,19 @@ pub fn get_episodes_by_feed_id(feed_id: i32) -> Result<Vec<EpisodeMeta>, CustomE
     Ok(episodes)
 }
 
+pub fn get_episodes_by_ids(episode_ids: Vec<i32>) -> Result<Vec<EpisodeMeta>, CustomError> {
+    let id_list = episode_ids
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<String>>()
+        .join(",");
+    let connection = open(Path::new("./database.sqlite"))?;
+    let query = format!("SELECT * FROM episodes WHERE id IN ({id_list}) ORDER BY date DESC;");
+    let mut episodes: Vec<EpisodeMeta> = Vec::new();
+    connection.iterate(query, |n| select_all_callback(n, &mut episodes))?;
+    Ok(episodes)
+}
+
 pub fn update_episode_download_status(id: i32, downloaded: bool) -> Result<(), CustomError> {
     let connection = open(Path::new("./database.sqlite"))?;
     let query = format!("UPDATE episodes SET downloaded = {downloaded} WHERE id = '{id}';");
@@ -239,6 +252,16 @@ pub async fn load_episodes() -> Result<Vec<EpisodeMeta>, String> {
 
 pub async fn load_episodes_for_show(feed_id: i32) -> Result<Vec<EpisodeMeta>, String> {
     match get_episodes_by_feed_id(feed_id) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(String::from(format!(
+            "Error fetching episodes from database: {:?}",
+            e
+        ))),
+    }
+}
+
+pub async fn load_episodes_by_id(ids: Vec<i32>) -> Result<Vec<EpisodeMeta>, String> {
+    match get_episodes_by_ids(ids) {
         Ok(data) => Ok(data),
         Err(e) => Err(String::from(format!(
             "Error fetching episodes from database: {:?}",

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::episode::Episode;
 use crate::{types::episodes::EpisodeMeta, ui::widgets::episode::Message as EpisodeMessage};
 use iced::{
@@ -9,25 +7,25 @@ use iced::{
 };
 
 pub struct EpisodeList {
-    pub episodes: HashMap<i32, Episode>,
+    pub episodes: Vec<Episode>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     EpisodeMessage((i32, EpisodeMessage)),
-    EpisodesLoaded(Result<Vec<EpisodeMeta>, String>),
+    EpisodesLoaded(Result<Vec<EpisodeMeta>, String>, bool),
 }
 
 impl EpisodeList {
     pub fn new() -> Self {
         Self {
-            episodes: HashMap::new(),
+            episodes: Vec::new(),
         }
     }
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::EpisodeMessage((id, episode_message)) => {
-                let episode_to_update = self.episodes.get_mut(&id);
+                let episode_to_update = self.episodes.iter_mut().find(|e| e.id == id);
                 match episode_to_update {
                     Some(episode) => {
                         let task = episode
@@ -38,16 +36,23 @@ impl EpisodeList {
                     None => Task::none(),
                 }
             }
-            Message::EpisodesLoaded(episodes_meta) => match episodes_meta {
+            Message::EpisodesLoaded(episodes_meta, show_queue_controls) => match episodes_meta {
                 Err(_) => Task::none(),
                 Ok(data) => match data.len() {
                     0 => Task::none(),
                     _ => {
-                        let mut hash: HashMap<i32, Episode> = HashMap::new();
+                        let mut hash: Vec<Episode> = Vec::new();
                         data.into_iter().for_each(|n| {
-                            let episode =
-                                Episode::new(n.id, n.feed_id, n.guid, n.title, n.downloaded, None);
-                            hash.insert(n.id, episode);
+                            let episode = Episode::new(
+                                n.id,
+                                n.feed_id,
+                                n.guid,
+                                n.title,
+                                n.downloaded,
+                                None,
+                                show_queue_controls,
+                            );
+                            hash.push(episode);
                         });
                         self.episodes = hash;
                         Task::none()
@@ -63,9 +68,9 @@ impl EpisodeList {
                 .center_x(Length::Fill)
                 .into(),
             _ => Scrollable::new(
-                column(self.episodes.iter().map(|(id, item)| {
+                column(self.episodes.iter().map(|item| {
                     item.view()
-                        .map(|m| Message::EpisodeMessage((id.clone(), m)))
+                        .map(|m| Message::EpisodeMessage((item.id.clone(), m)))
                 }))
                 .padding(20)
                 .align_x(Horizontal::Center),

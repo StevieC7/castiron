@@ -16,6 +16,7 @@ pub struct Episode {
     pub title: String,
     pub downloaded: bool,
     pub image_handle: Option<Handle>,
+    pub show_queue_controls: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,7 @@ impl Episode {
         title: String,
         downloaded: bool,
         image_handle: Option<Handle>,
+        show_queue_controls: bool,
     ) -> Self {
         Self {
             id,
@@ -43,6 +45,7 @@ impl Episode {
             title,
             downloaded,
             image_handle,
+            show_queue_controls,
         }
     }
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -75,7 +78,7 @@ impl Episode {
     }
 
     pub fn view(&self) -> Element<Message> {
-        let action_container: Row<Message, Theme, Renderer> = match self.downloaded {
+        let mut action_container: Row<Message, Theme, Renderer> = match self.downloaded {
             true => row!(
                 button(text("Delete"))
                     .on_press(Message::Delete)
@@ -89,6 +92,12 @@ impl Episode {
                     .width(Length::FillPortion(3))
             ),
             false => row!(button(text("Download")).on_press(Message::Download)),
+        };
+        match self.show_queue_controls {
+            true => {
+                action_container = action_container.push(button(text("Move Up")));
+            }
+            false => {}
         };
         match &self.image_handle {
             Some(handle) => container(row!(

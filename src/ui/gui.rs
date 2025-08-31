@@ -3,52 +3,36 @@
 use std::io::{BufReader, Read};
 
 use iced::{
-    advanced::image::Handle,
     futures::{channel::mpsc, channel::mpsc::Sender, SinkExt, Stream, StreamExt},
     stream,
-    widget::{
-        button, column, container, row, text, text_input, vertical_space, Column, Rule, Scrollable,
-    },
+    widget::{button, column, container, row, text, vertical_space, Rule},
     window, Alignment, Element, Length, Subscription, Task, Theme,
 };
 
 use super::widgets::{
-    config::Config,
-    episode::Episode,
     episode_list::EpisodeList,
-    feed::Feed,
-    feed_list::FeedList,
+    feed_list::{FeedList, Message as FeedListMessage},
     player::{Player, PlayerMessage},
 };
 use crate::{
     file_handling::{
-        config::{convert_theme_string_to_enum, create_config},
-        episodes::{
-            delete_episode_from_fs, get_episode_by_id, get_episodes_by_feed_id, load_episodes,
-            load_episodes_for_show,
-        },
-        feeds::{
-            add_feed_to_database, delete_associated_episodes_and_xml, get_feed_by_id, load_feeds,
-        },
-        queue::save_queue,
+        episodes::{load_episodes, load_episodes_by_id, load_episodes_for_show},
+        feeds::load_feeds,
         setup::InitData,
     },
-    types::{config::CastironConfig, episodes::EpisodeMeta as EpisodeData, feeds::FeedMeta},
+    networking::feeds::sync_episodes,
+    types::feeds::FeedMeta,
     ui::widgets::{
         episode::Message as EpisodeMessage, episode_list::Message as EpisodeListMessage, feed,
-        feed_list,
     },
 };
 
 // TODO: convert all view-dependent state to Option type, populate only when view selected
 pub struct Castiron {
     app_view: AppView,
-    episodes: EpisodeList,
-    episodes_for_show: EpisodeList,
-    castiron_config: Option<Config>,
-    feed_to_add: String,
     player: Player,
-    queue: Vec<Episode>,
+    // TODO: use array of ids instead to fit new pattern better
+    queue: Vec<i32>,
     theme: Theme,
 }
 
@@ -56,8 +40,7 @@ pub enum AppView {
     Feeds(FeedList),
     EpisodesForShow(EpisodeList),
     Episodes(EpisodeList),
-    Config,
-    Queue,
+    Queue(EpisodeList),
     Init,
 }
 
@@ -66,30 +49,17 @@ pub enum Message {
     LoadImages,
     ImageLoaderReady(mpsc::Sender<Message>),
     ImagesLoading,
-    FeedList(feed_list::Message),
+    FeedList(FeedListMessage),
     EpisodeList(EpisodeListMessage),
     ViewEpisodes,
     ViewFeeds,
     ViewQueue,
     ViewConfig,
-    AddFeed,
-    UnfollowFeed(i32),
     SyncEpisodes,
-    EpisodesSynced(Result<Option<Vec<EpisodeData>>, String>),
-    EpisodeDownloaded(Result<(), String>),
-    FeedToAddUpdated(String),
     PlayerMessage(PlayerMessage),
-    PodQueueMessage(PodQueueMessage),
-    ThemeChanged(Theme),
     InitComplete(InitData),
     InitFailed,
     HandleClose,
-}
-
-#[derive(Debug, Clone)]
-pub enum PodQueueMessage {
-    RemoveFromQueue(i32),
-    MoveToPosition(usize, usize),
 }
 
 impl Castiron {
@@ -97,10 +67,6 @@ impl Castiron {
         Self {
             // TODO: make an init that does something for real
             app_view: AppView::Init,
-            episodes: EpisodeList::new(),
-            episodes_for_show: EpisodeList::new(),
-            castiron_config: None,
-            feed_to_add: String::new(),
             player: Player::new(None),
             queue: Vec::new(),
             theme: Theme::default(),
@@ -113,11 +79,11 @@ impl Castiron {
             // TODO: only load the data for the AppView::Init until another view selected
             Message::FeedList(message) => {
                 // Intercept the message that sends us to the episode list view for the clicked feed
-                if let feed_list::Message::FeedMessage(feed_message) = &message {
+                if let FeedListMessage::FeedMessage(feed_message) = &message {
                     if let feed::Message::ViewEpisodesForShow(show_id) = feed_message {
                         self.app_view = AppView::EpisodesForShow(EpisodeList::new());
                         Task::perform(load_episodes_for_show(show_id.to_owned()), |res| {
-                            Message::EpisodeList(EpisodeListMessage::EpisodesLoaded(res))
+                            Message::EpisodeList(EpisodeListMessage::EpisodesLoaded(res, false))
                         })
                     } else {
                         match &mut self.app_view {
@@ -142,28 +108,12 @@ impl Castiron {
                 EpisodeListMessage::EpisodeMessage((id, msg)) => match msg {
                     // TODO: queue component should handle this
                     EpisodeMessage::AddToQueue => {
-                        let episode = get_episode_by_id(id.clone());
-                        match episode {
-                            Ok(ep) => {
-                                self.queue.push(Episode::new(
-                                    ep.id,
-                                    ep.feed_id,
-                                    ep.guid,
-                                    ep.title,
-                                    ep.downloaded,
-                                    None,
-                                ));
-                                Task::none()
-                            }
-                            Err(_) => Task::none(),
-                        }
+                        self.queue.push(id.clone());
+                        Task::none()
                     }
                     EpisodeMessage::Play => {
                         self.player = Player::new(Some(id.clone()));
-                        let found_idx = self
-                            .queue
-                            .iter()
-                            .position(|episode| episode.id == id.clone());
+                        let found_idx = self.queue.iter().position(|episode_id| episode_id == id);
                         match found_idx {
                             Some(idx) => {
                                 self.queue.remove(idx);
@@ -201,19 +151,32 @@ impl Castiron {
                             .map(|msg| Message::EpisodeList(msg));
                         task
                     }
+                    AppView::Queue(episodes) => {
+                        let task = episodes
+                            .update(message)
+                            .map(|msg| Message::EpisodeList(msg));
+                        task
+                    }
                     _ => Task::none(),
                 },
             },
             Message::ViewFeeds => {
                 self.app_view = AppView::Feeds(FeedList::new());
                 Task::perform(load_feeds(), |res| {
-                    Message::FeedList(feed_list::Message::FeedsLoaded(res))
+                    Message::FeedList(FeedListMessage::FeedsLoaded(res))
                 })
             }
             Message::ViewEpisodes => {
                 self.app_view = AppView::Episodes(EpisodeList::new());
                 Task::perform(load_episodes(), |res| {
-                    Message::EpisodeList(EpisodeListMessage::EpisodesLoaded(res))
+                    Message::EpisodeList(EpisodeListMessage::EpisodesLoaded(res, false))
+                })
+            }
+            Message::ViewQueue => {
+                self.app_view = AppView::Queue(EpisodeList::new());
+                // TODO: call function for getting episodes by array of ids
+                Task::perform(load_episodes_by_id(self.queue.clone()), |res| {
+                    Message::EpisodeList(EpisodeListMessage::EpisodesLoaded(res, true))
                 })
             }
             Message::ImageLoaderReady(sender) => {
@@ -221,7 +184,7 @@ impl Castiron {
             }
             Message::InitComplete(data) => {
                 self.app_view = AppView::Feeds(FeedList::new());
-                Task::done(Message::FeedList(feed_list::Message::FeedsLoaded(Ok(
+                Task::done(Message::FeedList(FeedListMessage::FeedsLoaded(Ok(
                     data.feeds
                 ))))
             }
@@ -231,12 +194,12 @@ impl Castiron {
                         Some(sink) => match sink.empty() {
                             true => {
                                 let episode_id = match self.queue.get(0) {
-                                    Some(episode) => Some(episode.id),
+                                    Some(id) => Some(id),
                                     None => None,
                                 };
                                 match episode_id {
                                     Some(id) => {
-                                        self.player = Player::new(Some(id));
+                                        self.player = Player::new(Some(*id));
                                         self.queue.remove(0);
                                     }
                                     None => {}
@@ -251,6 +214,7 @@ impl Castiron {
                 self.player.update(message);
                 Task::none()
             }
+            Message::SyncEpisodes => Task::perform(sync_episodes(), |_| Message::ViewFeeds),
             _ => Task::none(),
         }
     }
@@ -276,8 +240,7 @@ impl Castiron {
             AppView::Feeds(feeds) => feeds.view().map(Message::FeedList),
             AppView::Episodes(episodes) => episodes.view().map(Message::EpisodeList),
             AppView::EpisodesForShow(episodes) => episodes.view().map(Message::EpisodeList),
-            AppView::Config => todo!(),
-            AppView::Queue => todo!(),
+            AppView::Queue(episodes) => episodes.view().map(Message::EpisodeList),
         };
         match self.app_view {
             AppView::Init => container(text("Loading..."))
@@ -308,15 +271,15 @@ impl Castiron {
                                 .on_press(Message::ViewConfig)
                                 .padding(10)
                                 .width(Length::Fill),
-                            column![
-                                text_input("add feed", self.feed_to_add.as_str())
-                                    .on_input(Message::FeedToAddUpdated)
-                                    .width(Length::Fill),
-                                button(text("Add"))
-                                    .on_press(Message::AddFeed)
-                                    .padding(10)
-                                    .width(Length::Fill),
-                            ],
+                            // column![
+                            //     text_input("add feed", self.feed_to_add.as_str())
+                            //         .on_input(Message::FeedToAddUpdated)
+                            //         .width(Length::Fill),
+                            //     button(text("Add"))
+                            //         .on_press(Message::AddFeed)
+                            //         .padding(10)
+                            //         .width(Length::Fill),
+                            // ],
                             button(text("Sync"))
                                 .on_press(Message::SyncEpisodes)
                                 .padding(10)
@@ -379,7 +342,7 @@ fn image_loader() -> impl Stream<Item = Message> {
                                         Ok(bytes) => {
                                             let _ = output
                                                 .send(Message::FeedList(
-                                                    feed_list::Message::ImageLoaded(id, bytes),
+                                                    FeedListMessage::ImageLoaded(id, bytes),
                                                 ))
                                                 .await;
                                         }
@@ -387,7 +350,7 @@ fn image_loader() -> impl Stream<Item = Message> {
                                 }
                                 Err(_) => {
                                     let _ = output
-                                        .send(Message::FeedList(feed_list::Message::ImageFail))
+                                        .send(Message::FeedList(FeedListMessage::ImageFail))
                                         .await;
                                 }
                             }
