@@ -31,7 +31,6 @@ use crate::{
 pub struct Castiron {
     app_view: AppView,
     player: Player,
-    // TODO: use array of ids instead to fit new pattern better
     queue: Vec<i32>,
     theme: Theme,
 }
@@ -130,6 +129,12 @@ impl Castiron {
                             task
                         }
                         AppView::EpisodesForShow(episodes) => {
+                            let task = episodes
+                                .update(message)
+                                .map(|msg| Message::EpisodeList(msg));
+                            task
+                        }
+                        AppView::Queue(episodes) => {
                             let task = episodes
                                 .update(message)
                                 .map(|msg| Message::EpisodeList(msg));

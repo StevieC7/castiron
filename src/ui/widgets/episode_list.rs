@@ -45,8 +45,6 @@ impl EpisodeList {
                         data.into_iter().for_each(|n| {
                             let episode = Episode::new(
                                 n.id,
-                                n.feed_id,
-                                n.guid,
                                 n.title,
                                 n.downloaded,
                                 None,

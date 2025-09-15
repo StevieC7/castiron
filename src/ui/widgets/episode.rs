@@ -11,8 +11,6 @@ use crate::{
 // TODO: implement download progress indicator
 pub struct Episode {
     pub id: i32,
-    pub feed_id: i32,
-    pub guid: String,
     pub title: String,
     pub downloaded: bool,
     pub image_handle: Option<Handle>,
@@ -31,8 +29,6 @@ pub enum Message {
 impl Episode {
     pub fn new(
         id: i32,
-        feed_id: i32,
-        guid: String,
         title: String,
         downloaded: bool,
         image_handle: Option<Handle>,
@@ -40,8 +36,6 @@ impl Episode {
     ) -> Self {
         Self {
             id,
-            feed_id,
-            guid,
             title,
             downloaded,
             image_handle,
